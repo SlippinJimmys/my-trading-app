@@ -3,10 +3,11 @@ import yfinance as yf
 from datetime import datetime
 import pytz
 import pandas as pd
+import plotly.graph_objects as go
 
 st.set_page_config(page_title="My Trading App", layout="wide")
 st.title("🚀 MY TRADING APP - Clean & Easy")
-st.write("**$50-$100 Account** | Clear Buy Signals + Charts")
+st.write("**$50-$100 Account** | Clear Buy Signals + Interactive Charts")
 
 penny_stocks = ['XOS', 'SELX', 'HUBC', 'LASE', 'WCT', 'STAK', 'SBEV', 'DBGI', 'FNGR']
 big_stocks = ['NVDA', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'TSLA', 'META', 'AVGO', 'COST', 'NFLX', 'ADBE', 'CRM', 'AMD', 'INTC', 'QCOM', 'TXN', 'MU', 'AMAT', 'LRCX', 'KLAC', 'PANW', 'CRWD']
@@ -38,15 +39,15 @@ def get_data(ticker):
         return {
             'price': info.get('currentPrice', 0),
             'change': info.get('regularMarketChangePercent', 0),
-            'target': info.get('targetMeanPrice', 0)
+            'target': info.get('targetMeanPrice', 0),
+            'name': info.get('shortName', ticker)
         }
     except:
-        return {'price': 0, 'change': 0, 'target': 0}
+        return {'price': 0, 'change': 0, 'target': 0, 'name': ticker}
 
 if st.button("🔄 Refresh Data"):
     st.rerun()
 
-# Pacific Time
 pacific = pytz.timezone('US/Pacific')
 current_time = datetime.now(pacific).strftime('%I:%M:%S %p PT')
 st.write(f"**Last Updated:** {current_time}")
@@ -57,10 +58,10 @@ if page == "🔥 Today's Buys":
     for ticker in penny_stocks:
         data = get_data(ticker)
         if data['change'] >= 10:
-            st.success(f"🟢 **STRONG BUY** {ticker} → ${data['price']:.3f} | **+{data['change']:.1f}%**")
+            st.success(f"🟢 **STRONG BUY** {ticker} - {data['name']} → ${data['price']:.3f} | **+{data['change']:.1f}%**")
             st.write(f"   → Risk $5-$10 | Target: +20-40% today")
         elif data['change'] >= 5:
-            st.info(f"🟡 **CONSIDER** {ticker} → ${data['price']:.3f} | +{data['change']:.1f}%")
+            st.info(f"🟡 **CONSIDER** {ticker} - {data['name']} → ${data['price']:.3f} | +{data['change']:.1f}%")
 
 # 1 WEEK BUYS
 elif page == "📅 1 Week Buys":
@@ -68,7 +69,7 @@ elif page == "📅 1 Week Buys":
     for ticker in penny_stocks:
         data = get_data(ticker)
         if data['change'] > 3:
-            st.success(f"📈 **BUY** {ticker} → ${data['price']:.3f} | +{data['change']:.1f}%")
+            st.success(f"📈 **BUY** {ticker} - {data['name']} → ${data['price']:.3f} | +{data['change']:.1f}%")
 
 # 1 MONTH BUYS
 elif page == "📆 1 Month Buys":
@@ -76,7 +77,7 @@ elif page == "📆 1 Month Buys":
     for ticker in penny_stocks:
         data = get_data(ticker)
         if data['price'] < 8 and data['change'] > 2:
-            st.success(f"🏦 **BUY** {ticker} → ${data['price']:.3f} | +{data['change']:.1f}%")
+            st.success(f"🏦 **BUY** {ticker} - {data['name']} → ${data['price']:.3f} | +{data['change']:.1f}%")
 
 # BIG COMPANIES
 elif page == "📈 Big Companies":
@@ -84,7 +85,7 @@ elif page == "📈 Big Companies":
     for ticker in big_stocks + upcoming_stocks:
         data = get_data(ticker)
         upside = ((data['target'] / data['price']) - 1) * 100 if data['price'] > 0 else 0
-        st.write(f"**{ticker}** → Current: ${data['price']:.2f}")
+        st.write(f"**{ticker} - {data['name']}** → Current: ${data['price']:.2f}")
         col1, col2, col3, col4 = st.columns(4)
         with col1:
             if upside > 8: st.success("**1M:** Bullish")
@@ -116,27 +117,50 @@ elif page == "💵 Stocks by Price":
     for ticker in all_stocks:
         data = get_data(ticker)
         if min_p <= data['price'] < max_p:
-            st.success(f"**{ticker}** → ${data['price']:.2f} | +{data['change']:.1f}%")
+            st.success(f"**{ticker} - {data['name']}** → ${data['price']:.2f} | +{data['change']:.1f}%")
             found = True
     if not found:
         st.info("No stocks currently in this price range.")
 
-# CHARTS & ANALYSIS
+# CHARTS & ANALYSIS - INTERACTIVE CANDLESTICK
 elif page == "📊 Charts & Analysis":
-    st.subheader("📊 REAL-TIME CHARTS")
+    st.subheader("📊 INTERACTIVE CANDLESTICK CHARTS")
+    
     selected_stock = st.selectbox("Select a stock to see its chart:", all_stocks)
+    
     if selected_stock:
         data = get_data(selected_stock)
-        st.write(f"**{selected_stock}** → Current: **${data['price']:.2f}** | Change: **{data['change']:.1f}%**")
+        st.write(f"**{selected_stock} - {data['name']}** → Current: **${data['price']:.2f}** | Change: **{data['change']:.1f}%**")
+        
+        # Get historical data for candlestick
         try:
-            hist = yf.Ticker(selected_stock).history(period="30d")
+            hist = yf.Ticker(selected_stock).history(period="60d")  # 60 days for better view
+            
             if not hist.empty:
-                st.line_chart(hist['Close'], use_container_width=True)
-                st.write("**30-Day Price Chart**")
+                fig = go.Figure(data=[go.Candlestick(
+                    x=hist.index,
+                    open=hist['Open'],
+                    high=hist['High'],
+                    low=hist['Low'],
+                    close=hist['Close'],
+                    name=selected_stock
+                )])
+                
+                fig.update_layout(
+                    title=f"{selected_stock} - {data['name']} (Last 60 Days)",
+                    xaxis_title="Date",
+                    yaxis_title="Price ($)",
+                    height=500,
+                    xaxis_rangeslider_visible=True,
+                    template="plotly_dark"
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+                st.write("**Interactive Candlestick Chart** - Zoom, scroll, and hover for details")
             else:
-                st.warning("No chart data available.")
-        except:
-            st.warning("Could not load chart.")
+                st.warning("No chart data available for this stock.")
+        except Exception as e:
+            st.warning(f"Could not load chart: {str(e)}")
 
 # MARKET TRENDS
 elif page == "📊 Market Trends":
