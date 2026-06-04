@@ -112,14 +112,6 @@ if page == "🏠 Dashboard":
     with col2: st.metric("Max Risk/Trade", f"${max_risk}")
     with col3: st.metric("Market Bias", "Bullish")
     with col4: st.metric("Active Filters", f"{price_sort} | {potential_sort}")
-    
-    with st.expander("📖 How to Use This App"):
-        st.write("""
-        - Set your rules in **🤖 Auto-Trade Settings**
-        - Click **Run Auto-Trades Now** to simulate automated trading
-        - Use **Emergency Stop** if needed
-        - Practice everything safely in **📝 Paper Trading**
-        """)
 
 # ==================== TODAY'S HIGHLIGHTS ====================
 elif page == "⭐ Today's Highlights":
@@ -235,7 +227,7 @@ elif page == "📰 Live Intelligence":
         except:
             st.warning("Could not load news right now.")
 
-# ==================== AUTO-TRADE SETTINGS + SAFETY FEATURES ====================
+# ==================== AUTO-TRADE SETTINGS ====================
 elif page == "🤖 Auto-Trade Settings":
     st.subheader("🤖 AUTO-TRADE SETTINGS & SAFETY")
     st.warning("Currently works in **Paper Trading** mode only.")
@@ -253,7 +245,6 @@ elif page == "🤖 Auto-Trade Settings":
     
     settings = st.session_state.auto_settings
     
-    # Settings
     settings['enabled'] = st.checkbox("Enable Auto-Trading (Paper Only)", value=settings['enabled'])
     settings['only_highlights'] = st.checkbox("Only trade stocks from Today's Highlights", value=settings['only_highlights'])
     settings['min_price'] = st.number_input("Minimum Stock Price ($)", value=settings['min_price'], step=0.5)
@@ -264,7 +255,6 @@ elif page == "🤖 Auto-Trade Settings":
     
     st.markdown("---")
     
-    # ========== SAFETY STATUS ==========
     st.subheader("🛡️ Safety Status")
     
     if 'portfolio' not in st.session_state:
@@ -272,14 +262,10 @@ elif page == "🤖 Auto-Trade Settings":
     
     port = st.session_state.portfolio
     
-    # Simple daily P&L calculation (based on trades today)
     daily_pnl = 0
-    today = datetime.now().date()
-    
     for trade in port.get('trades', []):
         if "AUTO BUY" in trade:
-            # This is a very basic estimation
-            daily_pnl -= 5  # Assume small cost for demo
+            daily_pnl -= 5
     
     daily_loss = abs(daily_pnl) if daily_pnl < 0 else 0
     
@@ -289,20 +275,18 @@ elif page == "🤖 Auto-Trade Settings":
     with col2:
         st.metric("Daily Loss Limit", f"${settings['max_daily_loss']}")
     
-    auto_trading_allowed = True
-    if daily_loss >= settings['max_daily_loss']:
-        auto_trading_allowed = False
-        st.error("🛑 **AUTO-TRADING BLOCKED** — Daily loss limit reached!")
+    auto_trading_allowed = daily_loss < settings['max_daily_loss']
     
-    # ========== EMERGENCY STOP BUTTON ==========
+    if not auto_trading_allowed:
+        st.error("🛑 AUTO-TRADING BLOCKED — Daily loss limit reached!")
+    
     if st.button("🛑 EMERGENCY STOP - Disable Auto-Trading"):
         settings['enabled'] = False
-        st.error("Auto-trading has been **EMERGENCY STOPPED**.")
+        st.error("Auto-trading has been EMERGENCY STOPPED.")
         st.rerun()
     
     st.markdown("---")
     
-    # ========== RUN AUTO-TRADES BUTTON ==========
     if st.button("🚀 Run Auto-Trades Now"):
         if not settings['enabled']:
             st.error("Auto-trading is currently disabled.")
@@ -318,7 +302,6 @@ elif page == "🤖 Auto-Trade Settings":
                 if len(port['positions']) >= settings['max_positions']:
                     break
                 
-                # RSI Filter
                 if settings['rsi_filter']:
                     try:
                         hist = yf.Ticker(ticker).history(period="20d")
@@ -346,27 +329,27 @@ elif page == "🤖 Auto-Trade Settings":
                     if ticker in port['positions']:
                         port['positions'][ticker]['shares'] += shares
                     else:
-                        port['positions'][ticker] = {'shares': shares, 'avg_price': price}
+                        port['positions'][ticker] = {
+                            'shares': shares, 
+                            'avg_price': price,
+                            'source': 'Auto'
+                        }
                     
-                    port['trades'].append(f"AUTO BUY {shares} {ticker} @ ${price:.2f}")
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+                    port['trades'].append({
+                        'timestamp': timestamp,
+                        'action': 'BUY',
+                        'ticker': ticker,
+                        'shares': shares,
+                        'price': price,
+                        'source': 'Auto'
+                    })
                     executed += 1
             
             if executed > 0:
                 st.success(f"✅ Auto-traded {executed} stocks successfully!")
             else:
                 st.info("No stocks met your current auto-trade criteria.")
-    
-    st.markdown("---")
-    st.subheader("Current Auto-Trade Rules")
-    st.write(f"""
-    - Auto Trading: **{'Enabled' if settings['enabled'] else 'Disabled'}**
-    - Only Highlights: **{settings['only_highlights']}**
-    - Min Price: **${settings['min_price']}**
-    - Max Risk/Trade: **${settings['max_risk_per_trade']}**
-    - RSI Filter: **{settings['rsi_filter']}**
-    - Max Daily Loss: **${settings['max_daily_loss']}**
-    - Max Positions: **{settings['max_positions']}**
-    """)
 
 # OPTIONS STRATEGIES
 elif page == "📈 Options Strategies":
@@ -384,7 +367,7 @@ elif page == "📈 Options Strategies":
         with st.expander(f"📌 {name}"):
             st.write(desc)
 
-# PAPER TRADING
+# ==================== PAPER TRADING (WITH PERFORMANCE ANALYTICS) ====================
 elif page == "📝 Paper Trading":
     st.subheader("📝 PAPER TRADING SIMULATOR")
     
@@ -393,14 +376,107 @@ elif page == "📝 Paper Trading":
     
     port = st.session_state.portfolio
     
-    col1, col2, col3 = st.columns(3)
-    with col1: st.metric("Cash", f"${port['cash']:.2f}")
-    with col2: 
-        total = port['cash'] + sum(p['shares'] * get_data(t)['price'] for t, p in port['positions'].items())
-        st.metric("Portfolio Value", f"${total:.2f}")
-    with col3: st.metric("Positions", len(port['positions']))
+    # ==================== PORTFOLIO PERFORMANCE ANALYTICS ====================
+    st.subheader("📈 Portfolio Performance Analytics")
+    
+    # Calculate metrics
+    starting_capital = 10000.0
+    current_cash = port['cash']
+    
+    total_position_value = 0
+    total_cost_basis = 0
+    position_pnls = []
+    
+    for ticker, pos in port['positions'].items():
+        current_price = get_data(ticker)['price']
+        position_value = pos['shares'] * current_price
+        cost_basis = pos['shares'] * pos['avg_price']
+        
+        total_position_value += position_value
+        total_cost_basis += cost_basis
+        
+        pnl = position_value - cost_basis
+        position_pnls.append((ticker, pnl, pos['shares']))
+    
+    current_portfolio_value = current_cash + total_position_value
+    total_pnl = current_portfolio_value - starting_capital
+    total_return_pct = (total_pnl / starting_capital) * 100
+    
+    # Display key metrics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("Portfolio Value", f"${current_portfolio_value:.2f}")
+    with col2:
+        st.metric("Total P&L", f"${total_pnl:.2f}", delta=f"{total_return_pct:.1f}%")
+    with col3:
+        st.metric("Cash Available", f"${current_cash:.2f}")
+    with col4:
+        st.metric("Open Positions", len(port['positions']))
+    
+    # Best and Worst Performers
+    if position_pnls:
+        best = max(position_pnls, key=lambda x: x[1])
+        worst = min(position_pnls, key=lambda x: x[1])
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.success(f"**Best Performer:** {best[0]} → ${best[1]:.2f}")
+        with col2:
+            st.error(f"**Worst Performer:** {worst[0]} → ${worst[1]:.2f}")
+    
+    # P&L Breakdown Chart
+    if position_pnls:
+        st.markdown("---")
+        st.subheader("P&L Breakdown by Position")
+        
+        pnl_df = pd.DataFrame(position_pnls, columns=['Ticker', 'P&L ($)', 'Shares'])
+        st.bar_chart(pnl_df.set_index('Ticker')['P&L ($)'])
     
     st.markdown("---")
+    
+    # ==================== CURRENT POSITIONS ====================
+    st.subheader("📋 Current Positions")
+    
+    if port['positions']:
+        for ticker, pos in port['positions'].items():
+            current_price = get_data(ticker)['price']
+            pnl = (current_price - pos['avg_price']) * pos['shares']
+            source = pos.get('source', 'Human')
+            source_label = "🤖 Auto Trade" if source == "Auto" else "👤 Human Trade"
+            
+            st.write(f"**{ticker}** — {pos['shares']} shares @ ${pos['avg_price']:.2f} | "
+                     f"Current: ${current_price:.2f} | P&L: ${pnl:.2f} | **{source_label}**")
+    else:
+        st.info("No open positions yet.")
+    
+    st.markdown("---")
+    
+    # ==================== TRADE HISTORY LOG ====================
+    st.subheader("📜 Trade History Log")
+    
+    if port.get('trades'):
+        for trade in reversed(port['trades'][-20:]):
+            timestamp = trade.get('timestamp', 'Unknown time')
+            action = trade.get('action', '')
+            ticker = trade.get('ticker', '')
+            shares = trade.get('shares', 0)
+            price = trade.get('price', 0)
+            source = trade.get('source', 'Human')
+            
+            source_emoji = "🤖" if source == "Auto" else "👤"
+            
+            if action == "BUY":
+                st.success(f"{timestamp} | {source_emoji} **BUY** {shares} {ticker} @ ${price:.2f}")
+            else:
+                st.error(f"{timestamp} | {source_emoji} **SELL** {shares} {ticker} @ ${price:.2f}")
+    else:
+        st.info("No trades recorded yet.")
+    
+    st.markdown("---")
+    
+    # Manual Trade Form
+    st.subheader("Manual Trade")
     col1, col2, col3 = st.columns(3)
     with col1: trade_ticker = st.selectbox("Stock", all_stocks)
     with col2: action = st.selectbox("Action", ["BUY", "SELL"])
@@ -409,18 +485,43 @@ elif page == "📝 Paper Trading":
     if st.button("Execute Trade"):
         price = get_data(trade_ticker)['price']
         value = shares * price
+        
         if action == "BUY" and port['cash'] >= value:
             port['cash'] -= value
             if trade_ticker in port['positions']:
                 port['positions'][trade_ticker]['shares'] += shares
             else:
-                port['positions'][trade_ticker] = {'shares': shares, 'avg_price': price}
+                port['positions'][trade_ticker] = {
+                    'shares': shares, 
+                    'avg_price': price,
+                    'source': 'Human'
+                }
+            
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+            port['trades'].append({
+                'timestamp': timestamp,
+                'action': 'BUY',
+                'ticker': trade_ticker,
+                'shares': shares,
+                'price': price,
+                'source': 'Human'
+            })
             st.success("Trade executed!")
         elif action == "SELL" and trade_ticker in port['positions'] and port['positions'][trade_ticker]['shares'] >= shares:
             port['cash'] += value
             port['positions'][trade_ticker]['shares'] -= shares
             if port['positions'][trade_ticker]['shares'] == 0:
                 del port['positions'][trade_ticker]
+            
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+            port['trades'].append({
+                'timestamp': timestamp,
+                'action': 'SELL',
+                'ticker': trade_ticker,
+                'shares': shares,
+                'price': price,
+                'source': 'Human'
+            })
             st.success("Trade executed!")
         else:
             st.error("Invalid trade!")
