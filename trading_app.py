@@ -266,6 +266,7 @@ elif page == "📰 Live Intelligence":
         except:
             st.warning("Could not load news right now.")
 
+# ==================== AUTO-TRADE SETTINGS ====================
 elif page == "🤖 Auto-Trade Settings":
     st.subheader("🤖 AUTO-TRADE SETTINGS & SCHEDULED MODE")
     st.warning("Currently works in **Paper Trading** mode only.")
@@ -277,11 +278,11 @@ elif page == "🤖 Auto-Trade Settings":
             'only_todays_buys': False,
             'min_price': 2.0,
             'max_price': 100.0,
-            'max_capital_per_trade': 50,
-            'max_risk_per_trade': 10,
+            'max_capital_per_trade': 50.0,        # ← Changed to float
+            'max_risk_per_trade': 10.0,
             'rsi_filter': True,
-            'max_daily_loss': 30,
-            'daily_profit_target': 50,
+            'max_daily_loss': 30.0,
+            'daily_profit_target': 50.0,
             'max_positions': 3
         }
     
@@ -303,16 +304,16 @@ elif page == "🤖 Auto-Trade Settings":
     settings['only_highlights'] = st.checkbox("Only trade stocks from Today's Highlights", value=settings['only_highlights'])
     settings['only_todays_buys'] = st.checkbox("Only Auto Trade Today's Buys (Strong Momentum)", value=settings['only_todays_buys'])
     
-    settings['min_price'] = st.number_input("Minimum Stock Price ($)", value=settings['min_price'], step=0.5)
-    settings['max_price'] = st.number_input("Maximum Stock Price ($)", value=settings['max_price'], step=1.0)
-    settings['max_capital_per_trade'] = st.number_input("Max Capital Per Trade ($)", value=settings['max_capital_per_trade'], step=5.0)
-    settings['max_risk_per_trade'] = st.number_input("Max Risk Per Trade ($)", value=settings['max_risk_per_trade'])
-    settings['rsi_filter'] = st.checkbox("Only buy if RSI < 35 (Oversold)", value=settings['rsi_filter'])
-    settings['max_daily_loss'] = st.number_input("Max Daily Loss Limit ($)", value=settings['max_daily_loss'])
-    settings['daily_profit_target'] = st.number_input("Daily Profit Target ($)", value=settings['daily_profit_target'], step=5.0)
-    settings['max_positions'] = st.number_input("Maximum Open Positions", value=settings['max_positions'], step=1)
+    # All number inputs now use float for consistency
+    settings['min_price'] = st.number_input("Minimum Stock Price ($)", value=float(settings['min_price']), step=0.5)
+    settings['max_price'] = st.number_input("Maximum Stock Price ($)", value=float(settings['max_price']), step=1.0)
+    settings['max_capital_per_trade'] = st.number_input("Max Capital Per Trade ($)", value=float(settings['max_capital_per_trade']), step=5.0)
+    settings['max_risk_per_trade'] = st.number_input("Max Risk Per Trade ($)", value=float(settings['max_risk_per_trade']), step=1.0)
+    settings['max_daily_loss'] = st.number_input("Max Daily Loss Limit ($)", value=float(settings['max_daily_loss']), step=5.0)
+    settings['daily_profit_target'] = st.number_input("Daily Profit Target ($)", value=float(settings['daily_profit_target']), step=5.0)
+    settings['max_positions'] = st.number_input("Maximum Open Positions", value=int(settings['max_positions']), step=1)
     
-    st.markdown("---")
+    settings['rsi_filter'] = st.checkbox("Only buy if RSI < 35 (Oversold)", value=settings['rsi_filter'])
     
     # Daily Performance
     st.subheader("📊 Daily Performance & Targets")
