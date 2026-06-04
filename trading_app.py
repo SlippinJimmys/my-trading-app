@@ -9,7 +9,6 @@ st.set_page_config(page_title="My Trading App", layout="wide")
 st.title("🚀 MY TRADING APP")
 st.write("**$50-$100 Account** | Smart Signals + Interactive Charts")
 
-# Stocks
 penny_stocks = ['XOS', 'SELX', 'HUBC', 'LASE', 'WCT', 'STAK', 'SBEV', 'DBGI', 'FNGR']
 big_stocks = ['NVDA', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'TSLA', 'META', 'AVGO', 'COST', 'NFLX', 'ADBE', 'CRM', 'AMD', 'INTC', 'QCOM', 'TXN', 'MU', 'AMAT', 'LRCX', 'KLAC', 'PANW', 'CRWD']
 upcoming_stocks = ['PLTR', 'ARM', 'SMCI', 'SNOW', 'DDOG', 'NET', 'MDB', 'ZS', 'OKTA', 'RBLX', 'COIN', 'HOOD', 'SOFI', 'RDDT', 'APP']
@@ -24,6 +23,7 @@ page = st.sidebar.radio(
     "📍 Navigation",
     [
         "🏠 Dashboard",
+        "⭐ Today's Highlights",
         "🔥 Today's Buys",
         "📅 1 Week Buys", 
         "📆 1 Month Buys",
@@ -43,10 +43,11 @@ def get_data(ticker):
             'price': info.get('currentPrice', 0),
             'change': info.get('regularMarketChangePercent', 0),
             'target': info.get('targetMeanPrice', 0),
-            'name': info.get('shortName', ticker)
+            'name': info.get('shortName', ticker),
+            'volume': info.get('volume', 0)
         }
     except:
-        return {'price': 0, 'change': 0, 'target': 0, 'name': ticker}
+        return {'price': 0, 'change': 0, 'target': 0, 'name': ticker, 'volume': 0}
 
 if st.button("🔄 Refresh All Data"):
     st.rerun()
@@ -59,21 +60,17 @@ if page == "🏠 Dashboard":
     st.subheader("📊 Quick Dashboard")
     st.write(f"**Last Updated:** {current_time}")
     
-    # Quick Stats
     col1, col2, col3 = st.columns(3)
-    
     strong_buys_today = sum(1 for t in penny_stocks if get_data(t)['change'] >= 10)
     
     with col1:
-        st.metric("Strong Buys Today", strong_buys_today, delta="High Momentum" if strong_buys_today > 0 else "Wait for Setup")
+        st.metric("Strong Buys Today", strong_buys_today)
     with col2:
-        st.metric("Your Max Risk/Trade", f"${max_risk}")
+        st.metric("Max Risk/Trade", f"${max_risk}")
     with col3:
-        st.metric("Market Bias", "Bullish (AI Strong)", delta="Be Selective")
+        st.metric("Market Bias", "Bullish (AI Strong)")
     
     st.markdown("---")
-    
-    # Top Movers Right Now
     st.subheader("🔥 Top Movers Right Now")
     movers = []
     for ticker in penny_stocks:
@@ -86,23 +83,23 @@ if page == "🏠 Dashboard":
         for t, name, price, chg in movers[:5]:
             st.success(f"**{t} - {name}** → ${price:.3f} | **+{chg:.1f}%**")
     else:
-        st.info("No strong movers right now. Check back later.")
+        st.info("No strong movers right now.")
+
+# ========== TODAY'S HIGHLIGHTS (NEW) ==========
+elif page == "⭐ Today's Highlights":
+    st.subheader("⭐ TOP 10 STOCKS WITH BEST POTENTIAL TODAY")
+    st.write("**Strongest momentum + volume right now**")
     
-    st.markdown("---")
+    all_data = []
+    for ticker in all_stocks:
+        data = get_data(ticker)
+        if data['change'] > 0 and data['volume'] > 100000:
+            all_data.append((ticker, data['name'], data['price'], data['change'], data['volume']))
     
-    # Quick Risk Calculator
-    st.subheader("🧮 Quick Risk Calculator")
-    col1, col2 = st.columns(2)
-    with col1:
-        entry = st.number_input("Entry Price ($)", value=5.0, step=0.1)
-        stop = st.number_input("Stop Loss ($)", value=4.5, step=0.1)
-    with col2:
-        risk_amt = st.number_input("Risk Amount ($)", value=max_risk, step=1.0)
+    all_data.sort(key=lambda x: x[3], reverse=True)
     
-    if entry > stop:
-        shares = int(risk_amt / (entry - stop))
-        total_cost = shares * entry
-        st.success(f"**You can buy {shares} shares** | Total Cost: ${total_cost:.2f} | Risk: ${risk_amt}")
+    for i, (ticker, name, price, chg, vol) in enumerate(all_data[:10], 1):
+        st.success(f"**#{i} {ticker} - {name}** → ${price:.3f} | **+{chg:.1f}%** | Vol: {vol:,}")
 
 # ========== TODAY'S BUYS ==========
 elif page == "🔥 Today's Buys":
@@ -111,7 +108,7 @@ elif page == "🔥 Today's Buys":
         data = get_data(ticker)
         if data['change'] >= 10:
             st.success(f"🟢 **STRONG BUY** {ticker} - {data['name']} → ${data['price']:.3f} | **+{data['change']:.1f}%**")
-            st.write(f"   → Risk ${max_risk} max | Target: +20-40% today")
+            st.write(f"   → Risk max ${max_risk} | Target: +20-40% today")
         elif data['change'] >= 5:
             st.info(f"🟡 **CONSIDER** {ticker} - {data['name']} → ${data['price']:.3f} | +{data['change']:.1f}%")
 
@@ -146,10 +143,12 @@ elif page == "📈 Big Companies":
             if upside > 15: st.success(f"+{upside:.1f}%")
             else: st.write(f"+{upside:.1f}%")
 
-# STOCKS BY PRICE
+# STOCKS BY PRICE + FILTER
 elif page == "💵 Stocks by Price":
-    st.subheader("💵 STOCKS BY PRICE RANGE")
+    st.subheader("💵 STOCKS BY PRICE RANGE + FILTER")
+    
     price_range = st.selectbox("Select Price Range:", ["$100-$200", "$200-$300", "$300-$400", "$400-$500", "$500+"])
+    sort_order = st.selectbox("Sort by Price:", ["Lowest to Highest", "Highest to Lowest"])
     
     if price_range == "$100-$200": min_p, max_p = 100, 200
     elif price_range == "$200-$300": min_p, max_p = 200, 300
@@ -157,15 +156,21 @@ elif page == "💵 Stocks by Price":
     elif price_range == "$400-$500": min_p, max_p = 400, 500
     else: min_p, max_p = 500, 9999
     
-    st.write(f"**Stocks between ${min_p} - ${max_p if max_p < 9999 else '500+'}**")
-    found = False
+    filtered = []
     for ticker in all_stocks:
         data = get_data(ticker)
         if min_p <= data['price'] < max_p:
-            st.success(f"**{ticker} - {data['name']}** → ${data['price']:.2f} | +{data['change']:.1f}%")
-            found = True
-    if not found:
-        st.info("No stocks currently in this price range.")
+            filtered.append((ticker, data['name'], data['price'], data['change']))
+    
+    if sort_order == "Lowest to Highest":
+        filtered.sort(key=lambda x: x[2])
+    else:
+        filtered.sort(key=lambda x: x[2], reverse=True)
+    
+    st.write(f"**Stocks between ${min_p} - ${max_p if max_p < 9999 else '500+'}** ({sort_order})")
+    
+    for ticker, name, price, chg in filtered:
+        st.success(f"**{ticker} - {name}** → ${price:.2f} | +{chg:.1f}%")
 
 # CHARTS & ANALYSIS
 elif page == "📊 Charts & Analysis":
