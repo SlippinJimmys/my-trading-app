@@ -30,7 +30,7 @@ else:
     st.markdown("""<style>.stApp { background-color: #ffffff; color: #000000; }</style>""", unsafe_allow_html=True)
     plotly_template = "plotly_white"
 
-# ==================== SIDEBAR NAVIGATION (CLEANED UP) ====================
+# ==================== SIDEBAR SETTINGS ====================
 st.sidebar.header("⚙️ Settings")
 capital = st.sidebar.number_input("My Capital ($)", value=50, min_value=10)
 max_risk = st.sidebar.slider("Max Risk per Trade ($)", 5, 20, 10)
@@ -42,78 +42,69 @@ potential_sort = st.sidebar.selectbox("Sort by Potential", ["None", "Most Potent
 
 st.sidebar.markdown("---")
 
-# Custom CSS for bigger, cleaner navigation
+# ==================== NAVIGATION WITH SQUARE BUTTONS ====================
+st.sidebar.markdown("### 📍 Navigation")
+
+# Custom CSS to make radio buttons square instead of circles
 st.markdown("""
 <style>
-div[data-testid="stSidebar"] .stRadio > label {
-    font-size: 16px !important;
-    font-weight: 600;
-    padding: 6px 0;
+/* Make radio buttons square */
+div[data-testid="stSidebar"] .stRadio input[type="radio"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #666;
+    border-radius: 4px;           /* Square corners */
+    background-color: #1a1a1a;
+    cursor: pointer;
+    position: relative;
 }
-div[data-testid="stSidebar"] .stRadio > div {
-    gap: 4px;
+
+div[data-testid="stSidebar"] .stRadio input[type="radio"]:checked {
+    background-color: #00BFFF;
+    border-color: #00BFFF;
+}
+
+/* Add checkmark when selected */
+div[data-testid="stSidebar"] .stRadio input[type="radio"]:checked::after {
+    content: "✓";
+    color: white;
+    font-size: 14px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* Make labels bigger and cleaner */
+div[data-testid="stSidebar"] .stRadio > label {
+    font-size: 15px !important;
+    font-weight: 600;
+    padding-left: 8px;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# Grouped Navigation
-st.sidebar.markdown("### 📊 Trading & Signals")
 page = st.sidebar.radio(
     "",
-    [
+    options=[
         "🏠 Dashboard",
         "⭐ Today's Highlights",
         "🔥 Today's Buys",
         "📅 1 Week Buys",
         "📆 1 Month Buys",
-    ],
-    horizontal=False
-)
-
-st.sidebar.markdown("### 📈 Analysis & Intelligence")
-page2 = st.sidebar.radio(
-    "",
-    [
         "📈 Big Companies",
         "💵 Stocks by Price",
         "📰 Live Intelligence",
         "📊 Charts & Analysis",
-    ],
-    horizontal=False
-)
-
-st.sidebar.markdown("### 🤖 Automation & Practice")
-page3 = st.sidebar.radio(
-    "",
-    [
         "🤖 Auto-Trade Settings",
         "📝 Paper Trading",
-    ],
-    horizontal=False
-)
-
-st.sidebar.markdown("### 📚 Education")
-page4 = st.sidebar.radio(
-    "",
-    [
         "📈 Options Strategies",
         "📊 Market Trends",
     ],
-    horizontal=False
+    index=0
 )
-
-# Combine selected page
-if page != "🏠 Dashboard":
-    selected_page = page
-elif page2 != "📈 Big Companies":
-    selected_page = page2
-elif page3 != "🤖 Auto-Trade Settings":
-    selected_page = page3
-else:
-    selected_page = page4
-
-# Use the combined selection
-page = selected_page
 
 # ==================== HELPER FUNCTIONS ====================
 def get_data(ticker):
@@ -154,7 +145,8 @@ if st.button("🔄 Refresh All Data"):
 pacific = pytz.timezone('US/Pacific')
 current_time = datetime.now(pacific).strftime('%I:%M:%S %p PT')
 
-# ==================== DASHBOARD ====================
+# ==================== PAGE CONTENT ====================
+
 if page == "🏠 Dashboard":
     st.subheader("📊 Dashboard Overview")
     st.write(f"**Last Updated:** {current_time}")
@@ -167,14 +159,12 @@ if page == "🏠 Dashboard":
     with col3: st.metric("Market Bias", "Bullish")
     with col4: st.metric("Active Filters", f"{price_sort} | {potential_sort}")
 
-# ==================== TODAY'S HIGHLIGHTS ====================
 elif page == "⭐ Today's Highlights":
     st.subheader("⭐ TOP 10 STOCKS WITH BEST POTENTIAL TODAY")
     filtered = apply_filters(all_stocks)[:10]
     for i, (ticker, name, price, chg, upside, score, vol) in enumerate(filtered, 1):
         st.success(f"**#{i} {ticker} - {name}** → ${price:.3f} | **+{chg:.1f}%**")
 
-# ==================== TODAY'S BUYS ====================
 elif page == "🔥 Today's Buys":
     st.subheader("🔥 TODAY'S BEST BUYS")
     filtered = apply_filters(penny_stocks)
@@ -184,7 +174,6 @@ elif page == "🔥 Today's Buys":
         elif chg >= 5:
             st.info(f"🟡 **CONSIDER** {ticker} - {name} → ${price:.3f} | +{chg:.1f}%")
 
-# 1 WEEK BUYS
 elif page == "📅 1 Week Buys":
     st.subheader("📅 1 WEEK BUYS")
     filtered = apply_filters(penny_stocks)
@@ -192,7 +181,6 @@ elif page == "📅 1 Week Buys":
         if chg > 3:
             st.success(f"📈 **BUY** {ticker} - {name} → ${price:.3f} | +{chg:.1f}%")
 
-# 1 MONTH BUYS
 elif page == "📆 1 Month Buys":
     st.subheader("📆 1 MONTH BUYS")
     filtered = apply_filters(penny_stocks)
@@ -200,7 +188,6 @@ elif page == "📆 1 Month Buys":
         if price < 8 and chg > 2:
             st.success(f"🏦 **BUY** {ticker} - {name} → ${price:.3f} | +{chg:.1f}%")
 
-# BIG COMPANIES
 elif page == "📈 Big Companies":
     st.subheader("📈 BIG COMPANIES + GROWTH STOCKS")
     filtered = apply_filters(big_stocks + upcoming_stocks)
@@ -214,7 +201,6 @@ elif page == "📈 Big Companies":
             if upside > 15: st.success(f"+{upside:.1f}%")
             else: st.write(f"+{upside:.1f}%")
 
-# STOCKS BY PRICE
 elif page == "💵 Stocks by Price":
     st.subheader("💵 STOCKS BY PRICE RANGE")
     price_range = st.selectbox("Select Price Range:", ["$100-$200", "$200-$300", "$300-$400", "$400-$500", "$500+"])
@@ -229,7 +215,6 @@ elif page == "💵 Stocks by Price":
     for ticker, name, price, chg, upside, score, vol in filtered:
         st.success(f"**{ticker} - {name}** → ${price:.2f} | +{chg:.1f}%")
 
-# ==================== LIVE INTELLIGENCE ====================
 elif page == "📰 Live Intelligence":
     st.subheader("📰 LIVE MARKET INTELLIGENCE & NEWS SENTIMENT")
     
@@ -281,7 +266,6 @@ elif page == "📰 Live Intelligence":
         except:
             st.warning("Could not load news right now.")
 
-# ==================== AUTO-TRADE SETTINGS ====================
 elif page == "🤖 Auto-Trade Settings":
     st.subheader("🤖 AUTO-TRADE SETTINGS & SCHEDULED MODE")
     st.warning("Currently works in **Paper Trading** mode only.")
@@ -330,7 +314,7 @@ elif page == "🤖 Auto-Trade Settings":
     
     st.markdown("---")
     
-    # Daily Performance Status
+    # Daily Performance
     st.subheader("📊 Daily Performance & Targets")
     
     if 'portfolio' not in st.session_state:
@@ -508,23 +492,6 @@ elif page == "🤖 Auto-Trade Settings":
             else:
                 st.info("No stocks met your current auto-trade criteria.")
 
-# OPTIONS STRATEGIES
-elif page == "📈 Options Strategies":
-    st.subheader("📈 OPTIONS STRATEGIES EXPLORER")
-    st.warning("High risk. Practice in Paper Trading first.")
-    
-    strategies = {
-        "Long Call": "Strongly Bullish • High risk/reward",
-        "Bull Call Spread": "Moderately Bullish • Defined risk",
-        "Covered Call": "Mildly Bullish • Generate income",
-        "Iron Condor": "Neutral • High probability",
-        "Protective Put": "Bullish with protection"
-    }
-    for name, desc in strategies.items():
-        with st.expander(f"📌 {name}"):
-            st.write(desc)
-
-# PAPER TRADING
 elif page == "📝 Paper Trading":
     st.subheader("📝 PAPER TRADING SIMULATOR")
     
@@ -629,7 +596,21 @@ elif page == "📝 Paper Trading":
     else:
         st.info("No trades recorded yet.")
 
-# CHARTS & ANALYSIS
+elif page == "📈 Options Strategies":
+    st.subheader("📈 OPTIONS STRATEGIES EXPLORER")
+    st.warning("High risk. Practice in Paper Trading first.")
+    
+    strategies = {
+        "Long Call": "Strongly Bullish • High risk/reward",
+        "Bull Call Spread": "Moderately Bullish • Defined risk",
+        "Covered Call": "Mildly Bullish • Generate income",
+        "Iron Condor": "Neutral • High probability",
+        "Protective Put": "Bullish with protection"
+    }
+    for name, desc in strategies.items():
+        with st.expander(f"📌 {name}"):
+            st.write(desc)
+
 elif page == "📊 Charts & Analysis":
     st.subheader("📊 ADVANCED CHARTS & TECHNICAL ANALYSIS")
     selected_stock = st.selectbox("Select a stock:", all_stocks)
@@ -687,7 +668,6 @@ elif page == "📊 Charts & Analysis":
         except:
             st.error("Error loading chart.")
 
-# MARKET TRENDS
 elif page == "📊 Market Trends":
     st.subheader("📊 MARKET TRENDS")
     st.info("**Positive:** AI momentum still strong")
