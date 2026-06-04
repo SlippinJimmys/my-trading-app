@@ -284,27 +284,92 @@ elif page == "📝 Paper Trading":
     else:
         st.info("No open positions.")
 
-# CHARTS & ANALYSIS
+# ==================== CHARTS & ANALYSIS ====================
 elif page == "📊 Charts & Analysis":
-    st.subheader("📊 INTERACTIVE CANDLESTICK CHARTS")
+    st.subheader("📊 INTERACTIVE CANDLESTICK CHARTS + TECHNICAL INDICATORS")
+    
     selected_stock = st.selectbox("Select a stock:", all_stocks)
+    
     if selected_stock:
         data = get_data(selected_stock)
         st.write(f"**{selected_stock} - {data['name']}** → ${data['price']:.2f} | {data['change']:.1f}%")
+        
+        # Indicator Toggles
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            show_sma20 = st.checkbox("SMA 20", value=True)
+        with col2:
+            show_sma50 = st.checkbox("SMA 50", value=True)
+        with col3:
+            show_bbands = st.checkbox("Bollinger Bands", value=False)
+        
         try:
-            hist = yf.Ticker(selected_stock).history(period="60d")
+            hist = yf.Ticker(selected_stock).history(period="90d")
+            
             if not hist.empty:
-                fig = go.Figure(data=[go.Candlestick(x=hist.index, open=hist['Open'], high=hist['High'], low=hist['Low'], close=hist['Close'])])
-                fig.update_layout(title=f"{selected_stock} - {data['name']}", height=500, xaxis_rangeslider_visible=True, template="plotly_dark")
+                fig = go.Figure()
+                
+                # Candlestick
+                fig.add_trace(go.Candlestick(
+                    x=hist.index,
+                    open=hist['Open'],
+                    high=hist['High'],
+                    low=hist['Low'],
+                    close=hist['Close'],
+                    name="Price"
+                ))
+                
+                # SMA 20
+                if show_sma20:
+                    sma20 = hist['Close'].rolling(window=20).mean()
+                    fig.add_trace(go.Scatter(
+                        x=hist.index, y=sma20,
+                        line=dict(color='orange', width=1.5),
+                        name="SMA 20"
+                    ))
+                
+                # SMA 50
+                if show_sma50:
+                    sma50 = hist['Close'].rolling(window=50).mean()
+                    fig.add_trace(go.Scatter(
+                        x=hist.index, y=sma50,
+                        line=dict(color='blue', width=1.5),
+                        name="SMA 50"
+                    ))
+                
+                # Bollinger Bands
+                if show_bbands:
+                    sma20 = hist['Close'].rolling(window=20).mean()
+                    std20 = hist['Close'].rolling(window=20).std()
+                    upper_band = sma20 + (std20 * 2)
+                    lower_band = sma20 - (std20 * 2)
+                    
+                    fig.add_trace(go.Scatter(
+                        x=hist.index, y=upper_band,
+                        line=dict(color='gray', width=1, dash='dot'),
+                        name="Upper Band"
+                    ))
+                    fig.add_trace(go.Scatter(
+                        x=hist.index, y=lower_band,
+                        line=dict(color='gray', width=1, dash='dot'),
+                        name="Lower Band",
+                        fill='tonexty',
+                        fillcolor='rgba(128,128,128,0.1)'
+                    ))
+                
+                fig.update_layout(
+                    title=f"{selected_stock} - {data['name']} (Last 90 Days)",
+                    xaxis_title="Date",
+                    yaxis_title="Price ($)",
+                    height=550,
+                    xaxis_rangeslider_visible=True,
+                    template="plotly_dark",
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                )
+                
                 st.plotly_chart(fig, use_container_width=True)
-        except:
-            st.warning("Could not load chart.")
-
-# MARKET TRENDS
-elif page == "📊 Market Trends":
-    st.subheader("📊 MARKET TRENDS")
-    st.info("**Positive:** AI momentum still strong")
-    st.warning("**Risks:** High valuations + inflation pressure")
-    st.write("**Overall:** Good for momentum plays. Be selective.")
-
-st.caption(f"**Risk Rule:** Max ${max_risk} per trade. Sell fast on +20-40% or cut at -10%.")
+                st.caption("Toggle indicators above • Zoom & hover for details")
+            else:
+                st.warning("No chart data available.")
+        except Exception as e:
+            st.warning(f"Could not load chart: {str(e)}")
