@@ -284,7 +284,7 @@ elif page == "📝 Paper Trading":
     else:
         st.info("No open positions.")
 
-# ==================== CHARTS & ANALYSIS (IMPROVED) ====================
+# ==================== CHARTS & ANALYSIS ====================
 elif page == "📊 Charts & Analysis":
     st.subheader("📊 ADVANCED CHARTS & TECHNICAL ANALYSIS")
     
@@ -304,7 +304,6 @@ elif page == "📊 Charts & Analysis":
         with col3:
             show_bbands = st.checkbox("Show Bollinger Bands", value=True)
         
-        # Convert timeframe to days
         days_map = {"30 Days": 30, "60 Days": 60, "90 Days": 90, "180 Days": 180}
         days = days_map[timeframe]
         
@@ -317,20 +316,19 @@ elif page == "📊 Charts & Analysis":
                 hist['SMA20'] = hist['Close'].rolling(window=20).mean()
                 hist['SMA50'] = hist['Close'].rolling(window=50).mean()
                 
-                # Bollinger Bands
                 sma20 = hist['Close'].rolling(window=20).mean()
                 std20 = hist['Close'].rolling(window=20).std()
                 hist['UpperBand'] = sma20 + (std20 * 2)
                 hist['LowerBand'] = sma20 - (std20 * 2)
                 
-                # RSI
+                # RSI Calculation
                 delta = hist['Close'].diff()
                 gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
                 loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
                 rs = gain / loss
                 hist['RSI'] = 100 - (100 / (1 + rs))
                 
-                # Create subplots
+                # Create subplots (Price + RSI)
                 fig = make_subplots(
                     rows=2, cols=1,
                     shared_xaxes=True,
@@ -386,7 +384,7 @@ elif page == "📊 Charts & Analysis":
                     name="RSI"
                 ), row=2, col=1)
                 
-                # RSI overbought/oversold lines
+                # Overbought / Oversold lines
                 fig.add_hline(y=70, line_dash="dash", line_color="red", row=2, col=1)
                 fig.add_hline(y=30, line_dash="dash", line_color="green", row=2, col=1)
                 
@@ -405,14 +403,14 @@ elif page == "📊 Charts & Analysis":
                 
                 st.plotly_chart(fig, use_container_width=True)
                 
-                # Quick Interpretation
+                # RSI Interpretation
                 latest_rsi = hist['RSI'].iloc[-1]
                 if latest_rsi > 70:
-                    st.warning(f"**RSI is {latest_rsi:.1f}** → Overbought zone (possible pullback)")
+                    st.warning(f"**RSI = {latest_rsi:.1f}** → Overbought (possible pullback)")
                 elif latest_rsi < 30:
-                    st.success(f"**RSI is {latest_rsi:.1f}** → Oversold zone (possible bounce)")
+                    st.success(f"**RSI = {latest_rsi:.1f}** → Oversold (possible bounce)")
                 else:
-                    st.info(f"**RSI is {latest_rsi:.1f}** → Neutral territory")
+                    st.info(f"**RSI = {latest_rsi:.1f}** → Neutral")
                 
             else:
                 st.warning("Not enough data to calculate indicators.")
