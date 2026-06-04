@@ -6,21 +6,24 @@ import pandas as pd
 import plotly.graph_objects as go
 
 st.set_page_config(page_title="My Trading App", layout="wide")
-st.title("🚀 MY TRADING APP - Clean & Easy")
-st.write("**$50-$100 Account** | Clear Buy Signals + Interactive Charts")
+st.title("🚀 MY TRADING APP")
+st.write("**$50-$100 Account** | Smart Signals + Interactive Charts")
 
+# Stocks
 penny_stocks = ['XOS', 'SELX', 'HUBC', 'LASE', 'WCT', 'STAK', 'SBEV', 'DBGI', 'FNGR']
 big_stocks = ['NVDA', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'TSLA', 'META', 'AVGO', 'COST', 'NFLX', 'ADBE', 'CRM', 'AMD', 'INTC', 'QCOM', 'TXN', 'MU', 'AMAT', 'LRCX', 'KLAC', 'PANW', 'CRWD']
 upcoming_stocks = ['PLTR', 'ARM', 'SMCI', 'SNOW', 'DDOG', 'NET', 'MDB', 'ZS', 'OKTA', 'RBLX', 'COIN', 'HOOD', 'SOFI', 'RDDT', 'APP']
 all_stocks = list(set(penny_stocks + big_stocks + upcoming_stocks))
 
-st.sidebar.header("Settings")
+st.sidebar.header("⚙️ Settings")
 capital = st.sidebar.number_input("My Capital ($)", value=50, min_value=10)
+max_risk = st.sidebar.slider("Max Risk per Trade ($)", 5, 20, 10)
 
 st.sidebar.markdown("---")
 page = st.sidebar.radio(
-    "Choose Section:",
+    "📍 Navigation",
     [
+        "🏠 Dashboard",
         "🔥 Today's Buys",
         "📅 1 Week Buys", 
         "📆 1 Month Buys",
@@ -45,21 +48,70 @@ def get_data(ticker):
     except:
         return {'price': 0, 'change': 0, 'target': 0, 'name': ticker}
 
-if st.button("🔄 Refresh Data"):
+if st.button("🔄 Refresh All Data"):
     st.rerun()
 
 pacific = pytz.timezone('US/Pacific')
 current_time = datetime.now(pacific).strftime('%I:%M:%S %p PT')
-st.write(f"**Last Updated:** {current_time}")
 
-# TODAY'S BUYS
-if page == "🔥 Today's Buys":
+# ========== DASHBOARD ==========
+if page == "🏠 Dashboard":
+    st.subheader("📊 Quick Dashboard")
+    st.write(f"**Last Updated:** {current_time}")
+    
+    # Quick Stats
+    col1, col2, col3 = st.columns(3)
+    
+    strong_buys_today = sum(1 for t in penny_stocks if get_data(t)['change'] >= 10)
+    
+    with col1:
+        st.metric("Strong Buys Today", strong_buys_today, delta="High Momentum" if strong_buys_today > 0 else "Wait for Setup")
+    with col2:
+        st.metric("Your Max Risk/Trade", f"${max_risk}")
+    with col3:
+        st.metric("Market Bias", "Bullish (AI Strong)", delta="Be Selective")
+    
+    st.markdown("---")
+    
+    # Top Movers Right Now
+    st.subheader("🔥 Top Movers Right Now")
+    movers = []
+    for ticker in penny_stocks:
+        data = get_data(ticker)
+        if data['change'] >= 5:
+            movers.append((ticker, data['name'], data['price'], data['change']))
+    
+    if movers:
+        movers.sort(key=lambda x: x[3], reverse=True)
+        for t, name, price, chg in movers[:5]:
+            st.success(f"**{t} - {name}** → ${price:.3f} | **+{chg:.1f}%**")
+    else:
+        st.info("No strong movers right now. Check back later.")
+    
+    st.markdown("---")
+    
+    # Quick Risk Calculator
+    st.subheader("🧮 Quick Risk Calculator")
+    col1, col2 = st.columns(2)
+    with col1:
+        entry = st.number_input("Entry Price ($)", value=5.0, step=0.1)
+        stop = st.number_input("Stop Loss ($)", value=4.5, step=0.1)
+    with col2:
+        risk_amt = st.number_input("Risk Amount ($)", value=max_risk, step=1.0)
+    
+    if entry > stop:
+        shares = int(risk_amt / (entry - stop))
+        total_cost = shares * entry
+        st.success(f"**You can buy {shares} shares** | Total Cost: ${total_cost:.2f} | Risk: ${risk_amt}")
+
+# ========== TODAY'S BUYS ==========
+elif page == "🔥 Today's Buys":
     st.subheader("🔥 TODAY'S BEST BUYS (Strong Momentum)")
     for ticker in penny_stocks:
         data = get_data(ticker)
         if data['change'] >= 10:
             st.success(f"🟢 **STRONG BUY** {ticker} - {data['name']} → ${data['price']:.3f} | **+{data['change']:.1f}%**")
-            st.write(f"   → Risk $5-$10 | Target: +20-40% today")
+            st.write(f"   → Risk ${max_risk} max | Target: +20-40% today")
         elif data['change'] >= 5:
             st.info(f"🟡 **CONSIDER** {ticker} - {data['name']} → ${data['price']:.3f} | +{data['change']:.1f}%")
 
@@ -85,25 +137,18 @@ elif page == "📈 Big Companies":
     for ticker in big_stocks + upcoming_stocks:
         data = get_data(ticker)
         upside = ((data['target'] / data['price']) - 1) * 100 if data['price'] > 0 else 0
-        st.write(f"**{ticker} - {data['name']}** → Current: ${data['price']:.2f}")
+        st.write(f"**{ticker} - {data['name']}** → ${data['price']:.2f}")
         col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            if upside > 8: st.success("**1M:** Bullish")
-            else: st.info("**1M:** Neutral")
-        with col2:
-            if upside > 10: st.success("**3M:** Positive")
-            else: st.info("**3M:** Neutral")
-        with col3:
-            if upside > 12: st.success("**6M:** Strong")
-            else: st.info("**6M:** Moderate")
-        with col4:
-            if upside > 15: st.success(f"**12M:** +{upside:.1f}%")
-            elif upside > 8: st.info(f"**12M:** +{upside:.1f}%")
-            else: st.warning(f"**12M:** +{upside:.1f}%")
+        with col1: st.write("**1M**" if upside > 8 else "1M")
+        with col2: st.write("**3M**" if upside > 10 else "3M")
+        with col3: st.write("**6M**" if upside > 12 else "6M")
+        with col4: 
+            if upside > 15: st.success(f"+{upside:.1f}%")
+            else: st.write(f"+{upside:.1f}%")
 
 # STOCKS BY PRICE
 elif page == "💵 Stocks by Price":
-    st.subheader("💵 STOCKS BY PRICE RANGE (S&P 500 + Growth)")
+    st.subheader("💵 STOCKS BY PRICE RANGE")
     price_range = st.selectbox("Select Price Range:", ["$100-$200", "$200-$300", "$300-$400", "$400-$500", "$500+"])
     
     if price_range == "$100-$200": min_p, max_p = 100, 200
@@ -122,51 +167,27 @@ elif page == "💵 Stocks by Price":
     if not found:
         st.info("No stocks currently in this price range.")
 
-# CHARTS & ANALYSIS - INTERACTIVE CANDLESTICK
+# CHARTS & ANALYSIS
 elif page == "📊 Charts & Analysis":
     st.subheader("📊 INTERACTIVE CANDLESTICK CHARTS")
-    
-    selected_stock = st.selectbox("Select a stock to see its chart:", all_stocks)
-    
+    selected_stock = st.selectbox("Select a stock:", all_stocks)
     if selected_stock:
         data = get_data(selected_stock)
-        st.write(f"**{selected_stock} - {data['name']}** → Current: **${data['price']:.2f}** | Change: **{data['change']:.1f}%**")
-        
-        # Get historical data for candlestick
+        st.write(f"**{selected_stock} - {data['name']}** → ${data['price']:.2f} | {data['change']:.1f}%")
         try:
-            hist = yf.Ticker(selected_stock).history(period="60d")  # 60 days for better view
-            
+            hist = yf.Ticker(selected_stock).history(period="60d")
             if not hist.empty:
-                fig = go.Figure(data=[go.Candlestick(
-                    x=hist.index,
-                    open=hist['Open'],
-                    high=hist['High'],
-                    low=hist['Low'],
-                    close=hist['Close'],
-                    name=selected_stock
-                )])
-                
-                fig.update_layout(
-                    title=f"{selected_stock} - {data['name']} (Last 60 Days)",
-                    xaxis_title="Date",
-                    yaxis_title="Price ($)",
-                    height=500,
-                    xaxis_rangeslider_visible=True,
-                    template="plotly_dark"
-                )
-                
+                fig = go.Figure(data=[go.Candlestick(x=hist.index, open=hist['Open'], high=hist['High'], low=hist['Low'], close=hist['Close'])])
+                fig.update_layout(title=f"{selected_stock} - {data['name']}", height=500, xaxis_rangeslider_visible=True, template="plotly_dark")
                 st.plotly_chart(fig, use_container_width=True)
-                st.write("**Interactive Candlestick Chart** - Zoom, scroll, and hover for details")
-            else:
-                st.warning("No chart data available for this stock.")
-        except Exception as e:
-            st.warning(f"Could not load chart: {str(e)}")
+        except:
+            st.warning("Could not load chart.")
 
 # MARKET TRENDS
 elif page == "📊 Market Trends":
     st.subheader("📊 MARKET TRENDS")
-    st.info("**Positive:** AI momentum still strong, good earnings")
-    st.warning("**Risks:** High valuations, inflation, energy prices")
-    st.write("**Overall:** Good for momentum plays but use small size.")
+    st.info("**Positive:** AI momentum still strong")
+    st.warning("**Risks:** High valuations + inflation pressure")
+    st.write("**Overall:** Good for momentum plays. Be selective.")
 
-st.caption(f"**Risk Rule:** With ${capital}, max $5-$10 per trade. Sell fast on +20-40% or cut at -10%.")
+st.caption(f"**Risk Rule:** Max ${max_risk} per trade. Sell fast on +20-40% or cut at -10%.")
