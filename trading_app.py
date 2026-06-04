@@ -4,18 +4,24 @@ from datetime import datetime
 import time
 
 st.set_page_config(page_title="My Trading App", layout="wide")
-st.title("🚀 MY TRADING APP - Easy & Smart")
-st.write("**$50-$100 Account** | Clear Buy Recommendations")
+st.title("🚀 MY TRADING APP - Easy Buy Recommendations")
+st.write("**$50-$100 Account** | Clear Signals | Updated June 2026")
 
-# Stocks
-penny_stocks = ['XOS', 'SELX', 'HUBC', 'LASE', 'WCT', 'STAK', 'SBEV']
-big_stocks = ['NVDA', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'TSLA']
+# Stocks to monitor
+penny_stocks = ['XOS', 'SELX', 'HUBC', 'LASE', 'WCT', 'STAK', 'SBEV', 'DBGI', 'FNGR']
+big_stocks = ['NVDA', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'TSLA', 'META']
 
 st.sidebar.header("My Settings")
 refresh_rate = st.sidebar.slider("Refresh every (seconds)", 15, 60, 30)
 capital = st.sidebar.number_input("My Capital ($)", value=50, min_value=10)
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["🔥 TODAY'S BUYS", "📍 DAY JUMPS", "📈 BIG COMPANIES", "📊 MARKET TRENDS", "💡 MY ADVICE"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "🔥 TODAY'S BUYS", 
+    "📅 1 WEEK BUYS", 
+    "📆 1 MONTH BUYS", 
+    "📈 BIG COMPANIES", 
+    "📊 MARKET TRENDS"
+])
 
 def get_data(ticker):
     try:
@@ -34,56 +40,63 @@ while True:
     with placeholder.container():
         st.write(f"**Last Updated:** {datetime.now().strftime('%H:%M:%S')}")
 
-        # ==================== TODAY'S BUY RECOMMENDATIONS ====================
+        # ========== TODAY'S BUYS ==========
         with tab1:
-            st.subheader("🔥 TODAY'S BUY RECOMMENDATIONS")
-            st.write("**Best stocks right now for potential gains** (Based on momentum)")
-
+            st.subheader("🔥 TODAY'S BEST BUYS (Strong Momentum)")
+            st.write("**Best stocks right now for quick gains**")
+            
+            strong_buys = []
             for ticker in penny_stocks:
                 data = get_data(ticker)
                 if data['change'] >= 10:
-                    st.success(f"🟢 **BUY** {ticker} → ${data['price']:.3f} | +{data['change']:.1f}%  ← **High Potential**")
-                    st.write(f"→ Risk $5–10 | Target: +20-40% today")
+                    st.success(f"🟢 **STRONG BUY** {ticker} → ${data['price']:.3f} | **+{data['change']:.1f}%**")
+                    st.write(f"   → Risk only $5-$10 | Good volume & momentum")
+                    strong_buys.append(ticker)
                 elif data['change'] >= 5:
-                    st.info(f"🟡 **Consider Buying** {ticker} → ${data['price']:.3f} | +{data['change']:.1f}%")
-                else:
-                    st.write(f"⚪ {ticker} → ${data['price']:.3f} | +{data['change']:.1f}%")
+                    st.info(f"🟡 **CONSIDER** {ticker} → ${data['price']:.3f} | +{data['change']:.1f}%")
+            
+            if not strong_buys:
+                st.write("No strong momentum stocks right now. Wait for better setup.")
 
-        # DAY JUMPS
+        # ========== 1 WEEK BUYS ==========
         with tab2:
-            st.subheader("📍 DAY JUMPS")
+            st.subheader("📅 1 WEEK BUYS (Good for Short-Term Hold)")
             for ticker in penny_stocks:
                 data = get_data(ticker)
-                if data['change'] >= 8:
-                    st.warning(f"✅ {ticker} → ${data['price']:.3f} | +{data['change']:.1f}%")
+                if data['change'] > 3:
+                    st.success(f"📈 **BUY** {ticker} → ${data['price']:.3f} | +{data['change']:.1f}%")
+                    st.write(f"   → Potential for continued move this week")
 
-        # BIG COMPANIES LONG TERM
+        # ========== 1 MONTH BUYS ==========
         with tab3:
+            st.subheader("📆 1 MONTH BUYS (Better for Holding)")
+            for ticker in penny_stocks:
+                data = get_data(ticker)
+                if data['price'] < 8 and data['change'] > 2:
+                    st.success(f"🏦 **BUY** {ticker} → ${data['price']:.3f} | +{data['change']:.1f}%")
+                    st.write(f"   → Good price + momentum for 1 month hold")
+
+        # ========== BIG COMPANIES ==========
+        with tab4:
             st.subheader("📈 BIG COMPANIES - Long Term")
             for ticker in big_stocks:
                 data = get_data(ticker)
                 upside = ((data['target'] / data['price']) - 1) * 100 if data['price'] > 0 else 0
-                if upside > 15:
+                
+                if upside > 12:
                     st.success(f"**BUY** {ticker} → ${data['price']:.2f} | **{upside:.1f}%** Upside (12 months)")
+                elif upside > 5:
+                    st.info(f"{ticker} → ${data['price']:.2f} | {upside:.1f}% Upside")
                 else:
                     st.write(f"{ticker} → ${data['price']:.2f} | {upside:.1f}% Upside")
 
-        # MARKET TRENDS
-        with tab4:
-            st.subheader("📊 MARKET TRENDS")
-            st.info("**Positive:** AI sector still strong")
-            st.warning("**Risks:** High valuations and inflation pressure")
-            st.write("**Overall:** Good for short-term momentum trades but be careful.")
-
-        # MY ADVICE
+        # ========== MARKET TRENDS ==========
         with tab5:
-            st.subheader("💡 MY PERSONAL ADVICE")
-            st.write(f"With **${capital}**, here’s what I recommend:")
-            st.write("• Risk **maximum $5-$10** per trade")
-            st.write("• Focus on strong green momentum in the first 30-60 minutes")
-            st.write("• Sell quickly: Take 20-40% profit or cut loss at -10%")
-            st.warning("Remember: Penny stocks are very risky. You can lose your entire amount.")
+            st.subheader("📊 MARKET TRENDS")
+            st.info("**Positive:** AI momentum still strong, good earnings")
+            st.warning("**Risks:** High valuations, inflation, energy prices")
+            st.write("**Overall:** Good for momentum plays but use small size.")
 
-        st.caption("Tip: Refresh often and only buy when you see strong green momentum.")
+        st.caption(f"**Risk Rule:** With ${capital}, max $5-$10 per trade. Sell fast on +20-40% or cut at -10%.")
 
     time.sleep(refresh_rate)
