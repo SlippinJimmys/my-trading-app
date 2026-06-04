@@ -10,10 +10,9 @@ st.set_page_config(page_title="My Trading App", layout="wide")
 st.title("🚀 MY TRADING APP")
 st.write("**$50–$100 Account** | Smart Signals • Paper Trading • Automation Ready")
 
-# ==================== CUSTOM CSS FOR SQUARE SELECTORS ====================
+# ==================== SQUARE SELECTION BUTTONS (CSS) ====================
 st.markdown("""
 <style>
-/* Make navigation radio buttons into squares */
 div[data-testid="stSidebar"] .stRadio input[type="radio"] {
     appearance: none !important;
     -webkit-appearance: none !important;
@@ -25,12 +24,10 @@ div[data-testid="stSidebar"] .stRadio input[type="radio"] {
     cursor: pointer !important;
     position: relative !important;
 }
-
 div[data-testid="stSidebar"] .stRadio input[type="radio"]:checked {
     background-color: #00BFFF !important;
     border-color: #00BFFF !important;
 }
-
 div[data-testid="stSidebar"] .stRadio input[type="radio"]:checked::after {
     content: "✓" !important;
     color: white !important;
@@ -40,8 +37,6 @@ div[data-testid="stSidebar"] .stRadio input[type="radio"]:checked::after {
     left: 50% !important;
     transform: translate(-50%, -50%) !important;
 }
-
-/* Bigger navigation text */
 div[data-testid="stSidebar"] .stRadio > label {
     font-size: 15px !important;
     font-weight: 600 !important;
@@ -69,7 +64,7 @@ else:
     st.markdown("""<style>.stApp { background-color: #ffffff; color: #000000; }</style>""", unsafe_allow_html=True)
     plotly_template = "plotly_white"
 
-# ==================== SIDEBAR SETTINGS ====================
+# ==================== SIDEBAR ====================
 st.sidebar.header("⚙️ Settings")
 capital = st.sidebar.number_input("My Capital ($)", value=50, min_value=10)
 max_risk = st.sidebar.slider("Max Risk per Trade ($)", 5, 20, 10)
@@ -95,6 +90,7 @@ page = st.sidebar.radio(
         "📈 Big Companies",
         "💵 Stocks by Price",
         "📰 Live Intelligence",
+        "🏛️ Politician Trades",
         "📊 Charts & Analysis",
         "🤖 Auto-Trade Settings",
         "📝 Paper Trading",
@@ -143,8 +139,7 @@ if st.button("🔄 Refresh All Data"):
 pacific = pytz.timezone('US/Pacific')
 current_time = datetime.now(pacific).strftime('%I:%M:%S %p PT')
 
-# ==================== PAGE CONTENT ====================
-
+# ==================== DASHBOARD ====================
 if page == "🏠 Dashboard":
     st.subheader("📊 Dashboard Overview")
     st.write(f"**Last Updated:** {current_time}")
@@ -157,6 +152,7 @@ if page == "🏠 Dashboard":
     with col3: st.metric("Market Bias", "Bullish")
     with col4: st.metric("Active Filters", f"{price_sort} | {potential_sort}")
 
+# ==================== OTHER TABS (same as before) ====================
 elif page == "⭐ Today's Highlights":
     st.subheader("⭐ TOP 10 STOCKS WITH BEST POTENTIAL TODAY")
     filtered = apply_filters(all_stocks)[:10]
@@ -264,7 +260,132 @@ elif page == "📰 Live Intelligence":
         except:
             st.warning("Could not load news right now.")
 
+# ==================== NEW: POLITICIAN TRADES TAB ====================
+elif page == "🏛️ Politician Trades":
+    st.subheader("🏛️ Copy Trades of US Politicians")
+    st.write("View recent stock trades disclosed by members of Congress and copy them into your paper trading portfolio.")
+    
+    if 'portfolio' not in st.session_state:
+        st.session_state.portfolio = {'cash': 10000.0, 'positions': {}, 'trades': []}
+    
+    port = st.session_state.portfolio
+    
+    if st.button("🔄 Fetch Recent Politician Trades"):
+        # Example data (replace with real API like Quiver Quant for production)
+        politician_trades = pd.DataFrame({
+            'Politician': ['Nancy Pelosi (D)', 'Josh Hawley (R)', 'Ro Khanna (D)', 'Tommy Tuberville (R)'],
+            'Ticker': ['NVDA', 'TSLA', 'AAPL', 'COIN'],
+            'Transaction': ['Buy', 'Sell', 'Buy', 'Buy'],
+            'Amount Range': ['$1M - $5M', '$250K - $500K', '$100K - $250K', '$500K - $1M'],
+            'Date': ['2026-05-20', '2026-05-18', '2026-05-15', '2026-05-10']
+        })
+        st.session_state.politician_trades = politician_trades
+        st.success("Recent politician trades loaded!")
+    
+    if 'politician_trades' in st.session_state:
+        st.dataframe(st.session_state.politician_trades)
+        
+        st.subheader("Copy a Trade to Your Paper Portfolio")
+        
+        for idx, row in st.session_state.politician_trades.iterrows():
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                st.write(f"**{row['Politician']}** | {row['Transaction']} **{row['Ticker']}** | {row['Amount Range']} | {row['Date']}")
+            with col2:
+                if st.button(f"Copy {row['Ticker']}", key=f"copy_{idx}"):
+                    ticker = row['Ticker']
+                    # Estimate shares based on mid-point of amount range
+                    if 'M' in row['Amount Range']:
+                        amount = 3000000
+                    else:
+                        amount = 375000
+                    
+                    price = get_data(ticker)['price']
+                    shares = int(amount / price)
+                    
+                    if shares > 0 and port['cash'] >= (shares * price):
+                        port['cash'] -= (shares * price)
+                        if ticker in port['positions']:
+                            port['positions'][ticker]['shares'] += shares
+                        else:
+                            port['positions'][ticker] = {
+                                'shares': shares, 
+                                'avg_price': price,
+                                'source': 'Politician Copy'
+                            }
+                        
+                        port['trades'].append({
+                            'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M"),
+                            'action': 'BUY',
+                            'ticker': ticker,
+                            'shares': shares,
+                            'price': price,
+                            'source': 'Politician Copy'
+                        })
+                        st.success(f"✅ Copied {shares} shares of {ticker} into your paper portfolio!")
+                    else:
+                        st.error("Not enough cash or invalid calculation.")
+
+# ==================== REMAINING TABS (Charts, Auto-Trade, Paper Trading, etc.) ====================
+elif page == "📊 Charts & Analysis":
+    st.subheader("📊 ADVANCED CHARTS & TECHNICAL ANALYSIS")
+    selected_stock = st.selectbox("Select a stock:", all_stocks)
+    
+    if selected_stock:
+        data = get_data(selected_stock)
+        st.write(f"**{selected_stock} - {data['name']}** → ${data['price']:.2f} | {data['change']:.1f}%")
+        
+        col1, col2, col3 = st.columns([2, 2, 2])
+        with col1: timeframe = st.selectbox("Timeframe", ["30 Days", "60 Days", "90 Days", "180 Days"], index=2)
+        with col2: show_ma = st.checkbox("Show Moving Averages", value=True)
+        with col3: show_bbands = st.checkbox("Show Bollinger Bands", value=True)
+        
+        days = {"30 Days": 30, "60 Days": 60, "90 Days": 90, "180 Days": 180}[timeframe]
+        
+        try:
+            hist = yf.Ticker(selected_stock).history(period=f"{days}d")
+            if hist.empty or len(hist) < 50:
+                st.warning("Not enough data.")
+            else:
+                hist['SMA20'] = hist['Close'].rolling(20).mean()
+                hist['SMA50'] = hist['Close'].rolling(50).mean()
+                sma20 = hist['Close'].rolling(20).mean()
+                std20 = hist['Close'].rolling(20).std()
+                hist['UpperBand'] = sma20 + std20 * 2
+                hist['LowerBand'] = sma20 - std20 * 2
+                
+                delta = hist['Close'].diff()
+                gain = delta.where(delta > 0, 0).rolling(14).mean()
+                loss = -delta.where(delta < 0, 0).rolling(14).mean()
+                hist['RSI'] = 100 - (100 / (1 + gain / loss))
+                
+                fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.7, 0.3])
+                fig.add_trace(go.Candlestick(x=hist.index, open=hist['Open'], high=hist['High'], low=hist['Low'], close=hist['Close']), row=1, col=1)
+                
+                if show_ma:
+                    fig.add_trace(go.Scatter(x=hist.index, y=hist['SMA20'], name="SMA 20", line=dict(color='orange')), row=1, col=1)
+                    fig.add_trace(go.Scatter(x=hist.index, y=hist['SMA50'], name="SMA 50", line=dict(color='#00BFFF')), row=1, col=1)
+                
+                if show_bbands:
+                    fig.add_trace(go.Scatter(x=hist.index, y=hist['UpperBand'], name="Upper Band", line=dict(color='gray', dash='dot')), row=1, col=1)
+                    fig.add_trace(go.Scatter(x=hist.index, y=hist['LowerBand'], name="Lower Band", line=dict(color='gray', dash='dot')), row=1, col=1)
+                
+                fig.add_trace(go.Scatter(x=hist.index, y=hist['RSI'], name="RSI", line=dict(color='purple')), row=2, col=1)
+                fig.add_hline(y=70, line_dash="dash", line_color="red", row=2, col=1)
+                fig.add_hline(y=30, line_dash="dash", line_color="green", row=2, col=1)
+                
+                fig.update_layout(height=650, template=plotly_template, title=f"{selected_stock} ({timeframe})")
+                st.plotly_chart(fig, use_container_width=True)
+                
+                rsi = hist['RSI'].iloc[-1]
+                if rsi > 70: st.warning(f"RSI = {rsi:.1f} → Overbought")
+                elif rsi < 30: st.success(f"RSI = {rsi:.1f} → Oversold")
+                else: st.info(f"RSI = {rsi:.1f} → Neutral")
+        except:
+            st.error("Error loading chart.")
+
 elif page == "🤖 Auto-Trade Settings":
+    # (Keep your existing Auto-Trade Settings code here - it was already solid)
     st.subheader("🤖 AUTO-TRADE SETTINGS & SCHEDULED MODE")
     st.warning("Currently works in **Paper Trading** mode only.")
     
@@ -313,7 +434,6 @@ elif page == "🤖 Auto-Trade Settings":
     
     st.markdown("---")
     
-    # Daily Performance
     st.subheader("📊 Daily Performance & Targets")
     
     if 'portfolio' not in st.session_state:
@@ -361,7 +481,6 @@ elif page == "🤖 Auto-Trade Settings":
     
     st.markdown("---")
     
-    # Scheduled Auto-Trading
     st.subheader("⏰ Scheduled Auto-Trading")
     
     if schedule['active'] and schedule['end_time']:
