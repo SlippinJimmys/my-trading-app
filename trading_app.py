@@ -1,6 +1,6 @@
 import streamlit as st
 import yfinance as yf
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import pytz
 import pandas as pd
 import plotly.graph_objects as go
@@ -30,7 +30,7 @@ else:
     st.markdown("""<style>.stApp { background-color: #ffffff; color: #000000; }</style>""", unsafe_allow_html=True)
     plotly_template = "plotly_white"
 
-# ==================== SIDEBAR ====================
+# ==================== SIDEBAR NAVIGATION (CLEANED UP) ====================
 st.sidebar.header("⚙️ Settings")
 capital = st.sidebar.number_input("My Capital ($)", value=50, min_value=10)
 max_risk = st.sidebar.slider("Max Risk per Trade ($)", 5, 20, 10)
@@ -41,25 +41,79 @@ price_sort = st.sidebar.selectbox("Sort by Price", ["None", "Lowest → Highest"
 potential_sort = st.sidebar.selectbox("Sort by Potential", ["None", "Most Potential → Least"])
 
 st.sidebar.markdown("---")
+
+# Custom CSS for bigger, cleaner navigation
+st.markdown("""
+<style>
+div[data-testid="stSidebar"] .stRadio > label {
+    font-size: 16px !important;
+    font-weight: 600;
+    padding: 6px 0;
+}
+div[data-testid="stSidebar"] .stRadio > div {
+    gap: 4px;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# Grouped Navigation
+st.sidebar.markdown("### 📊 Trading & Signals")
 page = st.sidebar.radio(
-    "📍 Navigation",
+    "",
     [
         "🏠 Dashboard",
         "⭐ Today's Highlights",
         "🔥 Today's Buys",
         "📅 1 Week Buys",
         "📆 1 Month Buys",
-        "📈 Big Companies",
-        "💵 Stocks by Price",
-        "📰 Live Intelligence",
-        "🤖 Auto-Trade Settings",
-        "📈 Options Strategies",
-        "📝 Paper Trading",
-        "📊 Charts & Analysis",
-        "📊 Market Trends"
     ],
     horizontal=False
 )
+
+st.sidebar.markdown("### 📈 Analysis & Intelligence")
+page2 = st.sidebar.radio(
+    "",
+    [
+        "📈 Big Companies",
+        "💵 Stocks by Price",
+        "📰 Live Intelligence",
+        "📊 Charts & Analysis",
+    ],
+    horizontal=False
+)
+
+st.sidebar.markdown("### 🤖 Automation & Practice")
+page3 = st.sidebar.radio(
+    "",
+    [
+        "🤖 Auto-Trade Settings",
+        "📝 Paper Trading",
+    ],
+    horizontal=False
+)
+
+st.sidebar.markdown("### 📚 Education")
+page4 = st.sidebar.radio(
+    "",
+    [
+        "📈 Options Strategies",
+        "📊 Market Trends",
+    ],
+    horizontal=False
+)
+
+# Combine selected page
+if page != "🏠 Dashboard":
+    selected_page = page
+elif page2 != "📈 Big Companies":
+    selected_page = page2
+elif page3 != "🤖 Auto-Trade Settings":
+    selected_page = page3
+else:
+    selected_page = page4
+
+# Use the combined selection
+page = selected_page
 
 # ==================== HELPER FUNCTIONS ====================
 def get_data(ticker):
@@ -227,7 +281,7 @@ elif page == "📰 Live Intelligence":
         except:
             st.warning("Could not load news right now.")
 
-# ==================== AUTO-TRADE SETTINGS (WITH 1 SECOND INTERVAL) ====================
+# ==================== AUTO-TRADE SETTINGS ====================
 elif page == "🤖 Auto-Trade Settings":
     st.subheader("🤖 AUTO-TRADE SETTINGS & SCHEDULED MODE")
     st.warning("Currently works in **Paper Trading** mode only.")
@@ -236,11 +290,14 @@ elif page == "🤖 Auto-Trade Settings":
         st.session_state.auto_settings = {
             'enabled': False,
             'only_highlights': True,
+            'only_todays_buys': False,
             'min_price': 2.0,
             'max_price': 100.0,
+            'max_capital_per_trade': 50,
             'max_risk_per_trade': 10,
             'rsi_filter': True,
             'max_daily_loss': 30,
+            'daily_profit_target': 50,
             'max_positions': 3
         }
     
@@ -248,24 +305,80 @@ elif page == "🤖 Auto-Trade Settings":
         st.session_state.auto_schedule = {
             'active': False,
             'end_time': None,
-            'interval_seconds': 30   # Changed to seconds
+            'interval_seconds': 30
         }
+    
+    if 'daily_start_value' not in st.session_state:
+        st.session_state.daily_start_value = None
+        st.session_state.last_reset_date = None
     
     settings = st.session_state.auto_settings
     schedule = st.session_state.auto_schedule
     
     settings['enabled'] = st.checkbox("Enable Auto-Trading (Paper Only)", value=settings['enabled'])
     settings['only_highlights'] = st.checkbox("Only trade stocks from Today's Highlights", value=settings['only_highlights'])
+    settings['only_todays_buys'] = st.checkbox("Only Auto Trade Today's Buys (Strong Momentum)", value=settings['only_todays_buys'])
+    
     settings['min_price'] = st.number_input("Minimum Stock Price ($)", value=settings['min_price'], step=0.5)
     settings['max_price'] = st.number_input("Maximum Stock Price ($)", value=settings['max_price'], step=1.0)
+    settings['max_capital_per_trade'] = st.number_input("Max Capital Per Trade ($)", value=settings['max_capital_per_trade'], step=5.0)
     settings['max_risk_per_trade'] = st.number_input("Max Risk Per Trade ($)", value=settings['max_risk_per_trade'])
     settings['rsi_filter'] = st.checkbox("Only buy if RSI < 35 (Oversold)", value=settings['rsi_filter'])
     settings['max_daily_loss'] = st.number_input("Max Daily Loss Limit ($)", value=settings['max_daily_loss'])
+    settings['daily_profit_target'] = st.number_input("Daily Profit Target ($)", value=settings['daily_profit_target'], step=5.0)
     settings['max_positions'] = st.number_input("Maximum Open Positions", value=settings['max_positions'], step=1)
     
     st.markdown("---")
     
-    # ==================== SCHEDULED AUTO-TRADING ====================
+    # Daily Performance Status
+    st.subheader("📊 Daily Performance & Targets")
+    
+    if 'portfolio' not in st.session_state:
+        st.session_state.portfolio = {'cash': 10000.0, 'positions': {}, 'trades': []}
+    
+    port = st.session_state.portfolio
+    
+    current_portfolio_value = port['cash']
+    for ticker, pos in port['positions'].items():
+        current_portfolio_value += pos['shares'] * get_data(ticker)['price']
+    
+    today = date.today()
+    if st.session_state.last_reset_date != today:
+        st.session_state.daily_start_value = current_portfolio_value
+        st.session_state.last_reset_date = today
+    
+    daily_start_value = st.session_state.daily_start_value or current_portfolio_value
+    daily_pnl = current_portfolio_value - daily_start_value
+    
+    daily_loss = abs(daily_pnl) if daily_pnl < 0 else 0
+    daily_profit = daily_pnl if daily_pnl > 0 else 0
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Starting Value Today", f"${daily_start_value:.2f}")
+    with col2:
+        st.metric("Current Portfolio Value", f"${current_portfolio_value:.2f}")
+    with col3:
+        delta = f"{(daily_pnl / daily_start_value) * 100:.1f}%" if daily_start_value > 0 else "0%"
+        st.metric("Today's P&L", f"${daily_pnl:.2f}", delta=delta)
+    
+    profit_target_reached = daily_profit >= settings['daily_profit_target'] and settings['daily_profit_target'] > 0
+    loss_limit_reached = daily_loss >= settings['max_daily_loss']
+    
+    if profit_target_reached:
+        st.success(f"🎯 **DAILY PROFIT TARGET REACHED!** — You made ${daily_profit:.2f} today")
+        st.info("Auto-trading is now **PAUSED** for the rest of the day.")
+    elif loss_limit_reached:
+        st.error(f"🛑 **DAILY LOSS LIMIT REACHED** — You lost ${daily_loss:.2f}")
+        st.warning("Auto-trading is currently **BLOCKED**.")
+    else:
+        remaining_profit = settings['daily_profit_target'] - daily_profit if settings['daily_profit_target'] > 0 else 0
+        remaining_loss = settings['max_daily_loss'] - daily_loss
+        st.success(f"✅ On Track — ${remaining_profit:.2f} to profit target | ${remaining_loss:.2f} loss buffer left")
+    
+    st.markdown("---")
+    
+    # Scheduled Auto-Trading
     st.subheader("⏰ Scheduled Auto-Trading")
     
     if schedule['active'] and schedule['end_time']:
@@ -278,8 +391,6 @@ elif page == "🤖 Auto-Trade Settings":
             st.info("Auto-trading session has ended.")
     
     duration = st.selectbox("Run Auto-Trading For:", ["30 minutes", "1 hour", "2 hours", "4 hours"])
-    
-    # Updated interval options (now includes seconds)
     interval = st.selectbox("Check & Trade Every:", [
         "1 second", "5 seconds", "10 seconds", "30 seconds",
         "1 minute", "5 minutes", "15 minutes", "30 minutes", "60 minutes"
@@ -288,10 +399,10 @@ elif page == "🤖 Auto-Trade Settings":
     if st.button("🚀 Start Scheduled Auto-Trading Session"):
         if not settings['enabled']:
             st.error("Please enable Auto-Trading first.")
+        elif profit_target_reached or loss_limit_reached:
+            st.error("Cannot start — Daily target already reached or loss limit hit.")
         else:
             duration_minutes = {"30 minutes": 30, "1 hour": 60, "2 hours": 120, "4 hours": 240}[duration]
-            
-            # Convert interval to seconds
             interval_map = {
                 "1 second": 1, "5 seconds": 5, "10 seconds": 10, "30 seconds": 30,
                 "1 minute": 60, "5 minutes": 300, "15 minutes": 900,
@@ -316,24 +427,7 @@ elif page == "🤖 Auto-Trade Settings":
     
     st.markdown("---")
     
-    # ==================== SAFETY & MANUAL RUN ====================
     st.subheader("🛡️ Safety & Manual Run")
-    
-    if 'portfolio' not in st.session_state:
-        st.session_state.portfolio = {'cash': 10000.0, 'positions': {}, 'trades': []}
-    
-    port = st.session_state.portfolio
-    
-    daily_pnl = 0
-    for trade in port.get('trades', []):
-        if "AUTO BUY" in str(trade):
-            daily_pnl -= 5
-    
-    daily_loss = abs(daily_pnl) if daily_pnl < 0 else 0
-    auto_trading_allowed = daily_loss < settings['max_daily_loss']
-    
-    if not auto_trading_allowed:
-        st.error("🛑 AUTO-TRADING BLOCKED — Daily loss limit reached!")
     
     if st.button("🛑 EMERGENCY STOP"):
         settings['enabled'] = False
@@ -346,17 +440,25 @@ elif page == "🤖 Auto-Trade Settings":
     if st.button("🚀 Run Auto-Trades Now"):
         if not settings['enabled']:
             st.error("Auto-trading is currently disabled.")
-        elif not auto_trading_allowed:
-            st.error("Auto-trading is blocked due to daily loss limit.")
+        elif profit_target_reached:
+            st.error("Auto-trading paused — Daily profit target reached.")
+        elif loss_limit_reached:
+            st.error("Auto-trading blocked — Daily loss limit reached.")
         else:
-            highlights = apply_filters(all_stocks)[:10]
+            if settings['only_todays_buys']:
+                candidates = apply_filters(penny_stocks)
+            else:
+                candidates = apply_filters(all_stocks)
+            
             executed = 0
             
-            for ticker, name, price, chg, upside, score, vol in highlights:
+            for ticker, name, price, chg, upside, score, vol in candidates:
                 if price < settings['min_price'] or price > settings['max_price']:
                     continue
                 if len(port['positions']) >= settings['max_positions']:
                     break
+                if price > settings['max_capital_per_trade']:
+                    continue
                 
                 if settings['rsi_filter']:
                     try:
@@ -372,8 +474,7 @@ elif page == "🤖 Auto-Trade Settings":
                     except:
                         continue
                 
-                risk_per_share = price * 0.10
-                shares = int(settings['max_risk_per_trade'] / risk_per_share)
+                shares = int(settings['max_capital_per_trade'] / price)
                 
                 if shares < 1:
                     continue
@@ -492,6 +593,7 @@ elif page == "📝 Paper Trading":
     
     if st.button("Reset Portfolio"):
         st.session_state.portfolio = {'cash': 10000.0, 'positions': {}, 'trades': []}
+        st.session_state.daily_start_value = None
         st.success("Portfolio reset!")
     
     st.markdown("---")
