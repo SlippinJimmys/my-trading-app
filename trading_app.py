@@ -227,7 +227,7 @@ elif page == "📰 Live Intelligence":
         except:
             st.warning("Could not load news right now.")
 
-# ==================== AUTO-TRADE SETTINGS (WITH MAX PRICE) ====================
+# ==================== AUTO-TRADE SETTINGS (WITH 1 SECOND INTERVAL) ====================
 elif page == "🤖 Auto-Trade Settings":
     st.subheader("🤖 AUTO-TRADE SETTINGS & SCHEDULED MODE")
     st.warning("Currently works in **Paper Trading** mode only.")
@@ -237,7 +237,7 @@ elif page == "🤖 Auto-Trade Settings":
             'enabled': False,
             'only_highlights': True,
             'min_price': 2.0,
-            'max_price': 100.0,           # ← NEW
+            'max_price': 100.0,
             'max_risk_per_trade': 10,
             'rsi_filter': True,
             'max_daily_loss': 30,
@@ -248,7 +248,7 @@ elif page == "🤖 Auto-Trade Settings":
         st.session_state.auto_schedule = {
             'active': False,
             'end_time': None,
-            'interval_minutes': 30
+            'interval_seconds': 30   # Changed to seconds
         }
     
     settings = st.session_state.auto_settings
@@ -257,7 +257,7 @@ elif page == "🤖 Auto-Trade Settings":
     settings['enabled'] = st.checkbox("Enable Auto-Trading (Paper Only)", value=settings['enabled'])
     settings['only_highlights'] = st.checkbox("Only trade stocks from Today's Highlights", value=settings['only_highlights'])
     settings['min_price'] = st.number_input("Minimum Stock Price ($)", value=settings['min_price'], step=0.5)
-    settings['max_price'] = st.number_input("Maximum Stock Price ($)", value=settings['max_price'], step=1.0)   # ← NEW
+    settings['max_price'] = st.number_input("Maximum Stock Price ($)", value=settings['max_price'], step=1.0)
     settings['max_risk_per_trade'] = st.number_input("Max Risk Per Trade ($)", value=settings['max_risk_per_trade'])
     settings['rsi_filter'] = st.checkbox("Only buy if RSI < 35 (Oversold)", value=settings['rsi_filter'])
     settings['max_daily_loss'] = st.number_input("Max Daily Loss Limit ($)", value=settings['max_daily_loss'])
@@ -278,20 +278,32 @@ elif page == "🤖 Auto-Trade Settings":
             st.info("Auto-trading session has ended.")
     
     duration = st.selectbox("Run Auto-Trading For:", ["30 minutes", "1 hour", "2 hours", "4 hours"])
-    interval = st.selectbox("Check & Trade Every:", ["15 minutes", "30 minutes", "60 minutes"])
+    
+    # Updated interval options (now includes seconds)
+    interval = st.selectbox("Check & Trade Every:", [
+        "1 second", "5 seconds", "10 seconds", "30 seconds",
+        "1 minute", "5 minutes", "15 minutes", "30 minutes", "60 minutes"
+    ])
     
     if st.button("🚀 Start Scheduled Auto-Trading Session"):
         if not settings['enabled']:
             st.error("Please enable Auto-Trading first.")
         else:
             duration_minutes = {"30 minutes": 30, "1 hour": 60, "2 hours": 120, "4 hours": 240}[duration]
-            interval_minutes = {"15 minutes": 15, "30 minutes": 30, "60 minutes": 60}[interval]
+            
+            # Convert interval to seconds
+            interval_map = {
+                "1 second": 1, "5 seconds": 5, "10 seconds": 10, "30 seconds": 30,
+                "1 minute": 60, "5 minutes": 300, "15 minutes": 900,
+                "30 minutes": 1800, "60 minutes": 3600
+            }
+            interval_seconds = interval_map[interval]
             
             end_time = datetime.now() + timedelta(minutes=duration_minutes)
             
             schedule['active'] = True
             schedule['end_time'] = end_time
-            schedule['interval_minutes'] = interval_minutes
+            schedule['interval_seconds'] = interval_seconds
             
             st.success(f"✅ Scheduled auto-trading started! Will run until {end_time.strftime('%I:%M %p')}")
             st.rerun()
@@ -341,7 +353,6 @@ elif page == "🤖 Auto-Trade Settings":
             executed = 0
             
             for ticker, name, price, chg, upside, score, vol in highlights:
-                # Apply both min and max price filter
                 if price < settings['min_price'] or price > settings['max_price']:
                     continue
                 if len(port['positions']) >= settings['max_positions']:
