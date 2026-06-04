@@ -3,4 +3,3 @@ yfinance
 pandas
 pytz
 plotly
-make_subplots
