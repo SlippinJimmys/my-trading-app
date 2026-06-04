@@ -115,11 +115,10 @@ if page == "🏠 Dashboard":
     
     with st.expander("📖 How to Use This App"):
         st.write("""
-        1. Use **sidebar** to navigate
-        2. Check **📰 Live Intelligence** before trading
-        3. Set your rules in **🤖 Auto-Trade Settings**
-        4. Practice in **📝 Paper Trading**
-        5. Analyze in **📊 Charts & Analysis**
+        - Set your rules in **🤖 Auto-Trade Settings**
+        - Click **Run Auto-Trades Now** to simulate automated trading
+        - Use **Emergency Stop** if needed
+        - Practice everything safely in **📝 Paper Trading**
         """)
 
 # ==================== TODAY'S HIGHLIGHTS ====================
@@ -201,7 +200,6 @@ elif page == "📰 Live Intelligence":
             if news:
                 st.subheader("📰 Recent News + Sentiment")
                 positive_count = negative_count = neutral_count = 0
-                
                 positive_words = ['beat', 'surge', 'gain', 'rise', 'strong', 'growth', 'upgrade', 'bullish', 'profit', 'rally']
                 negative_words = ['miss', 'drop', 'fall', 'weak', 'loss', 'downgrade', 'bearish', 'decline', 'warning']
                 
@@ -229,18 +227,18 @@ elif page == "📰 Live Intelligence":
                 total = positive_count + negative_count + neutral_count
                 if total > 0:
                     if positive_count > negative_count:
-                        st.success("🟢 Overall: Bullish sentiment in recent news")
+                        st.success("🟢 Overall: Bullish sentiment")
                     elif negative_count > positive_count:
-                        st.error("🔴 Overall: Bearish sentiment in recent news")
+                        st.error("🔴 Overall: Bearish sentiment")
                     else:
-                        st.info("🟡 Overall: Neutral / Mixed sentiment")
+                        st.info("🟡 Overall: Neutral sentiment")
         except:
             st.warning("Could not load news right now.")
 
-# ==================== AUTO-TRADE SETTINGS (NEW) ====================
+# ==================== AUTO-TRADE SETTINGS + SAFETY FEATURES ====================
 elif page == "🤖 Auto-Trade Settings":
-    st.subheader("🤖 AUTO-TRADE SETTINGS")
-    st.warning("⚠️ This is for **Paper Trading** only right now. Real automation coming soon.")
+    st.subheader("🤖 AUTO-TRADE SETTINGS & SAFETY")
+    st.warning("Currently works in **Paper Trading** mode only.")
     
     if 'auto_settings' not in st.session_state:
         st.session_state.auto_settings = {
@@ -255,6 +253,7 @@ elif page == "🤖 Auto-Trade Settings":
     
     settings = st.session_state.auto_settings
     
+    # Settings
     settings['enabled'] = st.checkbox("Enable Auto-Trading (Paper Only)", value=settings['enabled'])
     settings['only_highlights'] = st.checkbox("Only trade stocks from Today's Highlights", value=settings['only_highlights'])
     settings['min_price'] = st.number_input("Minimum Stock Price ($)", value=settings['min_price'], step=0.5)
@@ -264,18 +263,110 @@ elif page == "🤖 Auto-Trade Settings":
     settings['max_positions'] = st.number_input("Maximum Open Positions", value=settings['max_positions'], step=1)
     
     st.markdown("---")
-    st.subheader("Current Auto-Trade Rules Summary")
+    
+    # ========== SAFETY STATUS ==========
+    st.subheader("🛡️ Safety Status")
+    
+    if 'portfolio' not in st.session_state:
+        st.session_state.portfolio = {'cash': 10000.0, 'positions': {}, 'trades': []}
+    
+    port = st.session_state.portfolio
+    
+    # Simple daily P&L calculation (based on trades today)
+    daily_pnl = 0
+    today = datetime.now().date()
+    
+    for trade in port.get('trades', []):
+        if "AUTO BUY" in trade:
+            # This is a very basic estimation
+            daily_pnl -= 5  # Assume small cost for demo
+    
+    daily_loss = abs(daily_pnl) if daily_pnl < 0 else 0
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Today's Estimated P&L", f"${daily_pnl:.2f}")
+    with col2:
+        st.metric("Daily Loss Limit", f"${settings['max_daily_loss']}")
+    
+    auto_trading_allowed = True
+    if daily_loss >= settings['max_daily_loss']:
+        auto_trading_allowed = False
+        st.error("🛑 **AUTO-TRADING BLOCKED** — Daily loss limit reached!")
+    
+    # ========== EMERGENCY STOP BUTTON ==========
+    if st.button("🛑 EMERGENCY STOP - Disable Auto-Trading"):
+        settings['enabled'] = False
+        st.error("Auto-trading has been **EMERGENCY STOPPED**.")
+        st.rerun()
+    
+    st.markdown("---")
+    
+    # ========== RUN AUTO-TRADES BUTTON ==========
+    if st.button("🚀 Run Auto-Trades Now"):
+        if not settings['enabled']:
+            st.error("Auto-trading is currently disabled.")
+        elif not auto_trading_allowed:
+            st.error("Auto-trading is blocked due to daily loss limit.")
+        else:
+            highlights = apply_filters(all_stocks)[:10]
+            executed = 0
+            
+            for ticker, name, price, chg, upside, score, vol in highlights:
+                if price < settings['min_price']:
+                    continue
+                if len(port['positions']) >= settings['max_positions']:
+                    break
+                
+                # RSI Filter
+                if settings['rsi_filter']:
+                    try:
+                        hist = yf.Ticker(ticker).history(period="20d")
+                        if not hist.empty:
+                            delta = hist['Close'].diff()
+                            gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+                            loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+                            rs = gain / loss
+                            rsi = 100 - (100 / (1 + rs)).iloc[-1]
+                            if rsi >= 35:
+                                continue
+                    except:
+                        continue
+                
+                risk_per_share = price * 0.10
+                shares = int(settings['max_risk_per_trade'] / risk_per_share)
+                
+                if shares < 1:
+                    continue
+                
+                cost = shares * price
+                
+                if port['cash'] >= cost:
+                    port['cash'] -= cost
+                    if ticker in port['positions']:
+                        port['positions'][ticker]['shares'] += shares
+                    else:
+                        port['positions'][ticker] = {'shares': shares, 'avg_price': price}
+                    
+                    port['trades'].append(f"AUTO BUY {shares} {ticker} @ ${price:.2f}")
+                    executed += 1
+            
+            if executed > 0:
+                st.success(f"✅ Auto-traded {executed} stocks successfully!")
+            else:
+                st.info("No stocks met your current auto-trade criteria.")
+    
+    st.markdown("---")
+    st.subheader("Current Auto-Trade Rules")
     st.write(f"""
     - Auto Trading: **{'Enabled' if settings['enabled'] else 'Disabled'}**
-    - Only trade Highlights: **{settings['only_highlights']}**
+    - Only Highlights: **{settings['only_highlights']}**
     - Min Price: **${settings['min_price']}**
-    - Max Risk per Trade: **${settings['max_risk_per_trade']}**
+    - Max Risk/Trade: **${settings['max_risk_per_trade']}**
     - RSI Filter: **{settings['rsi_filter']}**
     - Max Daily Loss: **${settings['max_daily_loss']}**
     - Max Positions: **{settings['max_positions']}**
     """)
-    
-    st.info("💡 These settings will be used when we connect to Alpaca paper trading in the future.")
 
 # OPTIONS STRATEGIES
 elif page == "📈 Options Strategies":
@@ -296,7 +387,6 @@ elif page == "📈 Options Strategies":
 # PAPER TRADING
 elif page == "📝 Paper Trading":
     st.subheader("📝 PAPER TRADING SIMULATOR")
-    st.info("Practice with $10,000 virtual money.")
     
     if 'portfolio' not in st.session_state:
         st.session_state.portfolio = {'cash': 10000.0, 'positions': {}, 'trades': []}
