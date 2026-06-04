@@ -5,6 +5,40 @@ import pytz
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+# ==================== THEME SETTINGS ====================
+if 'theme' not in st.session_state:
+    st.session_state.theme = "Dark"
+
+theme = st.sidebar.radio(
+    "🎨 Theme",
+    ["Dark", "Light"],
+    index=0 if st.session_state.theme == "Dark" else 1,
+    horizontal=True
+)
+
+st.session_state.theme = theme
+
+# Apply theme styling
+if theme == "Dark":
+    st.markdown("""
+        <style>
+        .stApp {
+            background-color: #0e1117;
+            color: #fafafa;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    plotly_template = "plotly_dark"
+else:
+    st.markdown("""
+        <style>
+        .stApp {
+            background-color: #ffffff;
+            color: #000000;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    plotly_template = "plotly_white"
 st.set_page_config(page_title="My Trading App", layout="wide")
 st.title("🚀 MY TRADING APP")
 st.write("**$50–$100 Account** | Smart Signals • Paper Trading • Options Education")
