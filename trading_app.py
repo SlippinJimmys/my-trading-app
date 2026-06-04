@@ -1,6 +1,6 @@
 import streamlit as st
 import yfinance as yf
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
 import pandas as pd
 import plotly.graph_objects as go
@@ -227,9 +227,9 @@ elif page == "📰 Live Intelligence":
         except:
             st.warning("Could not load news right now.")
 
-# ==================== AUTO-TRADE SETTINGS ====================
+# ==================== AUTO-TRADE SETTINGS (WITH MAX PRICE) ====================
 elif page == "🤖 Auto-Trade Settings":
-    st.subheader("🤖 AUTO-TRADE SETTINGS & SAFETY")
+    st.subheader("🤖 AUTO-TRADE SETTINGS & SCHEDULED MODE")
     st.warning("Currently works in **Paper Trading** mode only.")
     
     if 'auto_settings' not in st.session_state:
@@ -237,17 +237,27 @@ elif page == "🤖 Auto-Trade Settings":
             'enabled': False,
             'only_highlights': True,
             'min_price': 2.0,
+            'max_price': 100.0,           # ← NEW
             'max_risk_per_trade': 10,
             'rsi_filter': True,
             'max_daily_loss': 30,
             'max_positions': 3
         }
     
+    if 'auto_schedule' not in st.session_state:
+        st.session_state.auto_schedule = {
+            'active': False,
+            'end_time': None,
+            'interval_minutes': 30
+        }
+    
     settings = st.session_state.auto_settings
+    schedule = st.session_state.auto_schedule
     
     settings['enabled'] = st.checkbox("Enable Auto-Trading (Paper Only)", value=settings['enabled'])
     settings['only_highlights'] = st.checkbox("Only trade stocks from Today's Highlights", value=settings['only_highlights'])
     settings['min_price'] = st.number_input("Minimum Stock Price ($)", value=settings['min_price'], step=0.5)
+    settings['max_price'] = st.number_input("Maximum Stock Price ($)", value=settings['max_price'], step=1.0)   # ← NEW
     settings['max_risk_per_trade'] = st.number_input("Max Risk Per Trade ($)", value=settings['max_risk_per_trade'])
     settings['rsi_filter'] = st.checkbox("Only buy if RSI < 35 (Oversold)", value=settings['rsi_filter'])
     settings['max_daily_loss'] = st.number_input("Max Daily Loss Limit ($)", value=settings['max_daily_loss'])
@@ -255,7 +265,47 @@ elif page == "🤖 Auto-Trade Settings":
     
     st.markdown("---")
     
-    st.subheader("🛡️ Safety Status")
+    # ==================== SCHEDULED AUTO-TRADING ====================
+    st.subheader("⏰ Scheduled Auto-Trading")
+    
+    if schedule['active'] and schedule['end_time']:
+        remaining = schedule['end_time'] - datetime.now()
+        if remaining.total_seconds() > 0:
+            st.success(f"✅ Auto-trading session active until {schedule['end_time'].strftime('%I:%M %p')}")
+            st.write(f"**Time remaining:** {str(remaining).split('.')[0]}")
+        else:
+            schedule['active'] = False
+            st.info("Auto-trading session has ended.")
+    
+    duration = st.selectbox("Run Auto-Trading For:", ["30 minutes", "1 hour", "2 hours", "4 hours"])
+    interval = st.selectbox("Check & Trade Every:", ["15 minutes", "30 minutes", "60 minutes"])
+    
+    if st.button("🚀 Start Scheduled Auto-Trading Session"):
+        if not settings['enabled']:
+            st.error("Please enable Auto-Trading first.")
+        else:
+            duration_minutes = {"30 minutes": 30, "1 hour": 60, "2 hours": 120, "4 hours": 240}[duration]
+            interval_minutes = {"15 minutes": 15, "30 minutes": 30, "60 minutes": 60}[interval]
+            
+            end_time = datetime.now() + timedelta(minutes=duration_minutes)
+            
+            schedule['active'] = True
+            schedule['end_time'] = end_time
+            schedule['interval_minutes'] = interval_minutes
+            
+            st.success(f"✅ Scheduled auto-trading started! Will run until {end_time.strftime('%I:%M %p')}")
+            st.rerun()
+    
+    if schedule['active']:
+        if st.button("🛑 Stop Scheduled Session Early"):
+            schedule['active'] = False
+            st.warning("Scheduled auto-trading session stopped.")
+            st.rerun()
+    
+    st.markdown("---")
+    
+    # ==================== SAFETY & MANUAL RUN ====================
+    st.subheader("🛡️ Safety & Manual Run")
     
     if 'portfolio' not in st.session_state:
         st.session_state.portfolio = {'cash': 10000.0, 'positions': {}, 'trades': []}
@@ -264,24 +314,18 @@ elif page == "🤖 Auto-Trade Settings":
     
     daily_pnl = 0
     for trade in port.get('trades', []):
-        if "AUTO BUY" in trade:
+        if "AUTO BUY" in str(trade):
             daily_pnl -= 5
     
     daily_loss = abs(daily_pnl) if daily_pnl < 0 else 0
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("Today's Estimated P&L", f"${daily_pnl:.2f}")
-    with col2:
-        st.metric("Daily Loss Limit", f"${settings['max_daily_loss']}")
-    
     auto_trading_allowed = daily_loss < settings['max_daily_loss']
     
     if not auto_trading_allowed:
         st.error("🛑 AUTO-TRADING BLOCKED — Daily loss limit reached!")
     
-    if st.button("🛑 EMERGENCY STOP - Disable Auto-Trading"):
+    if st.button("🛑 EMERGENCY STOP"):
         settings['enabled'] = False
+        schedule['active'] = False
         st.error("Auto-trading has been EMERGENCY STOPPED.")
         st.rerun()
     
@@ -297,7 +341,8 @@ elif page == "🤖 Auto-Trade Settings":
             executed = 0
             
             for ticker, name, price, chg, upside, score, vol in highlights:
-                if price < settings['min_price']:
+                # Apply both min and max price filter
+                if price < settings['min_price'] or price > settings['max_price']:
                     continue
                 if len(port['positions']) >= settings['max_positions']:
                     break
@@ -367,7 +412,7 @@ elif page == "📈 Options Strategies":
         with st.expander(f"📌 {name}"):
             st.write(desc)
 
-# ==================== PAPER TRADING (WITH PERFORMANCE ANALYTICS) ====================
+# PAPER TRADING
 elif page == "📝 Paper Trading":
     st.subheader("📝 PAPER TRADING SIMULATOR")
     
@@ -376,107 +421,15 @@ elif page == "📝 Paper Trading":
     
     port = st.session_state.portfolio
     
-    # ==================== PORTFOLIO PERFORMANCE ANALYTICS ====================
-    st.subheader("📈 Portfolio Performance Analytics")
-    
-    # Calculate metrics
-    starting_capital = 10000.0
-    current_cash = port['cash']
-    
-    total_position_value = 0
-    total_cost_basis = 0
-    position_pnls = []
-    
-    for ticker, pos in port['positions'].items():
-        current_price = get_data(ticker)['price']
-        position_value = pos['shares'] * current_price
-        cost_basis = pos['shares'] * pos['avg_price']
-        
-        total_position_value += position_value
-        total_cost_basis += cost_basis
-        
-        pnl = position_value - cost_basis
-        position_pnls.append((ticker, pnl, pos['shares']))
-    
-    current_portfolio_value = current_cash + total_position_value
-    total_pnl = current_portfolio_value - starting_capital
-    total_return_pct = (total_pnl / starting_capital) * 100
-    
-    # Display key metrics
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.metric("Portfolio Value", f"${current_portfolio_value:.2f}")
-    with col2:
-        st.metric("Total P&L", f"${total_pnl:.2f}", delta=f"{total_return_pct:.1f}%")
-    with col3:
-        st.metric("Cash Available", f"${current_cash:.2f}")
-    with col4:
-        st.metric("Open Positions", len(port['positions']))
-    
-    # Best and Worst Performers
-    if position_pnls:
-        best = max(position_pnls, key=lambda x: x[1])
-        worst = min(position_pnls, key=lambda x: x[1])
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            st.success(f"**Best Performer:** {best[0]} → ${best[1]:.2f}")
-        with col2:
-            st.error(f"**Worst Performer:** {worst[0]} → ${worst[1]:.2f}")
-    
-    # P&L Breakdown Chart
-    if position_pnls:
-        st.markdown("---")
-        st.subheader("P&L Breakdown by Position")
-        
-        pnl_df = pd.DataFrame(position_pnls, columns=['Ticker', 'P&L ($)', 'Shares'])
-        st.bar_chart(pnl_df.set_index('Ticker')['P&L ($)'])
+    col1, col2, col3 = st.columns(3)
+    with col1: st.metric("Cash", f"${port['cash']:.2f}")
+    with col2: 
+        total = port['cash'] + sum(p['shares'] * get_data(t)['price'] for t, p in port['positions'].items())
+        st.metric("Portfolio Value", f"${total:.2f}")
+    with col3: st.metric("Positions", len(port['positions']))
     
     st.markdown("---")
     
-    # ==================== CURRENT POSITIONS ====================
-    st.subheader("📋 Current Positions")
-    
-    if port['positions']:
-        for ticker, pos in port['positions'].items():
-            current_price = get_data(ticker)['price']
-            pnl = (current_price - pos['avg_price']) * pos['shares']
-            source = pos.get('source', 'Human')
-            source_label = "🤖 Auto Trade" if source == "Auto" else "👤 Human Trade"
-            
-            st.write(f"**{ticker}** — {pos['shares']} shares @ ${pos['avg_price']:.2f} | "
-                     f"Current: ${current_price:.2f} | P&L: ${pnl:.2f} | **{source_label}**")
-    else:
-        st.info("No open positions yet.")
-    
-    st.markdown("---")
-    
-    # ==================== TRADE HISTORY LOG ====================
-    st.subheader("📜 Trade History Log")
-    
-    if port.get('trades'):
-        for trade in reversed(port['trades'][-20:]):
-            timestamp = trade.get('timestamp', 'Unknown time')
-            action = trade.get('action', '')
-            ticker = trade.get('ticker', '')
-            shares = trade.get('shares', 0)
-            price = trade.get('price', 0)
-            source = trade.get('source', 'Human')
-            
-            source_emoji = "🤖" if source == "Auto" else "👤"
-            
-            if action == "BUY":
-                st.success(f"{timestamp} | {source_emoji} **BUY** {shares} {ticker} @ ${price:.2f}")
-            else:
-                st.error(f"{timestamp} | {source_emoji} **SELL** {shares} {ticker} @ ${price:.2f}")
-    else:
-        st.info("No trades recorded yet.")
-    
-    st.markdown("---")
-    
-    # Manual Trade Form
-    st.subheader("Manual Trade")
     col1, col2, col3 = st.columns(3)
     with col1: trade_ticker = st.selectbox("Stock", all_stocks)
     with col2: action = st.selectbox("Action", ["BUY", "SELL"])
@@ -529,6 +482,39 @@ elif page == "📝 Paper Trading":
     if st.button("Reset Portfolio"):
         st.session_state.portfolio = {'cash': 10000.0, 'positions': {}, 'trades': []}
         st.success("Portfolio reset!")
+    
+    st.markdown("---")
+    
+    st.subheader("📋 Current Positions")
+    if port['positions']:
+        for ticker, pos in port['positions'].items():
+            current_price = get_data(ticker)['price']
+            pnl = (current_price - pos['avg_price']) * pos['shares']
+            source = pos.get('source', 'Human')
+            source_label = "🤖 Auto Trade" if source == "Auto" else "👤 Human Trade"
+            st.write(f"**{ticker}** — {pos['shares']} shares @ ${pos['avg_price']:.2f} | Current: ${current_price:.2f} | P&L: ${pnl:.2f} | **{source_label}**")
+    else:
+        st.info("No open positions yet.")
+    
+    st.markdown("---")
+    
+    st.subheader("📜 Trade History Log")
+    if port.get('trades'):
+        for trade in reversed(port['trades'][-20:]):
+            timestamp = trade.get('timestamp', 'Unknown time')
+            action = trade.get('action', '')
+            ticker = trade.get('ticker', '')
+            shares = trade.get('shares', 0)
+            price = trade.get('price', 0)
+            source = trade.get('source', 'Human')
+            source_emoji = "🤖" if source == "Auto" else "👤"
+            
+            if action == "BUY":
+                st.success(f"{timestamp} | {source_emoji} **BUY** {shares} {ticker} @ ${price:.2f}")
+            else:
+                st.error(f"{timestamp} | {source_emoji} **SELL** {shares} {ticker} @ ${price:.2f}")
+    else:
+        st.info("No trades recorded yet.")
 
 # CHARTS & ANALYSIS
 elif page == "📊 Charts & Analysis":
