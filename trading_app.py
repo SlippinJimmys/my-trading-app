@@ -7,13 +7,15 @@ import plotly.graph_objects as go
 
 st.set_page_config(page_title="My Trading App", layout="wide")
 st.title("🚀 MY TRADING APP")
-st.write("**$50-$100 Account** | Smart Signals + Paper Trading + Options Education")
+st.write("**$50–$100 Account** | Smart Signals • Paper Trading • Options Education")
 
+# ==================== STOCK LISTS ====================
 penny_stocks = ['XOS', 'SELX', 'HUBC', 'LASE', 'WCT', 'STAK', 'SBEV', 'DBGI', 'FNGR']
 big_stocks = ['NVDA', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'TSLA', 'META', 'AVGO', 'COST', 'NFLX', 'ADBE', 'CRM', 'AMD', 'INTC', 'QCOM', 'TXN', 'MU', 'AMAT', 'LRCX', 'KLAC', 'PANW', 'CRWD']
 upcoming_stocks = ['PLTR', 'ARM', 'SMCI', 'SNOW', 'DDOG', 'NET', 'MDB', 'ZS', 'OKTA', 'RBLX', 'COIN', 'HOOD', 'SOFI', 'RDDT', 'APP']
 all_stocks = list(set(penny_stocks + big_stocks + upcoming_stocks))
 
+# ==================== SIDEBAR ====================
 st.sidebar.header("⚙️ Settings")
 capital = st.sidebar.number_input("My Capital ($)", value=50, min_value=10)
 max_risk = st.sidebar.slider("Max Risk per Trade ($)", 5, 20, 10)
@@ -30,7 +32,7 @@ page = st.sidebar.radio(
         "🏠 Dashboard",
         "⭐ Today's Highlights",
         "🔥 Today's Buys",
-        "📅 1 Week Buys", 
+        "📅 1 Week Buys",
         "📆 1 Month Buys",
         "📈 Big Companies",
         "💵 Stocks by Price",
@@ -42,6 +44,7 @@ page = st.sidebar.radio(
     horizontal=False
 )
 
+# ==================== HELPER FUNCTIONS ====================
 def get_data(ticker):
     try:
         stock = yf.Ticker(ticker)
@@ -80,44 +83,60 @@ if st.button("🔄 Refresh All Data"):
 pacific = pytz.timezone('US/Pacific')
 current_time = datetime.now(pacific).strftime('%I:%M:%S %p PT')
 
-# ========== DASHBOARD ==========
+# ==================== DASHBOARD (Improved) ====================
 if page == "🏠 Dashboard":
-    st.subheader("📊 Quick Dashboard")
+    st.subheader("📊 Dashboard Overview")
     st.write(f"**Last Updated:** {current_time}")
     
-    col1, col2, col3 = st.columns(3)
-    strong_buys_today = sum(1 for t in penny_stocks if get_data(t)['change'] >= 10)
+    # Quick Stats
+    col1, col2, col3, col4 = st.columns(4)
+    strong_buys = sum(1 for t in penny_stocks if get_data(t)['change'] >= 10)
     
     with col1:
-        st.metric("Strong Buys Today", strong_buys_today)
+        st.metric("Strong Buys Today", strong_buys)
     with col2:
         st.metric("Max Risk/Trade", f"${max_risk}")
     with col3:
-        st.metric("Market Bias", "Bullish (AI Strong)")
+        st.metric("Market Bias", "Bullish")
+    with col4:
+        st.metric("Active Filters", f"{price_sort} | {potential_sort}")
     
     st.markdown("---")
+    
+    # How to Use
+    with st.expander("📖 How to Use This App"):
+        st.write("""
+        1. Use the **sidebar** to navigate between sections.
+        2. **Global Filters** (in sidebar) affect most tabs automatically.
+        3. Use **⭐ Today's Highlights** to see the best opportunities right now.
+        4. Practice safely in **📝 Paper Trading** before using real money.
+        5. Learn strategies in **📈 Options Strategies**.
+        6. Analyze charts in **📊 Charts & Analysis**.
+        """)
+    
+    st.markdown("---")
+    
+    # Top Movers
     st.subheader("🔥 Top Movers Right Now")
-    movers = []
-    for ticker in penny_stocks:
-        data = get_data(ticker)
-        if data['change'] >= 5:
-            movers.append((ticker, data['name'], data['price'], data['change']))
+    movers = [(t, get_data(t)['name'], get_data(t)['price'], get_data(t)['change']) 
+              for t in penny_stocks if get_data(t)['change'] >= 5]
+    movers.sort(key=lambda x: x[3], reverse=True)
     
     if movers:
-        movers.sort(key=lambda x: x[3], reverse=True)
-        for t, name, price, chg in movers[:5]:
+        for t, name, price, chg in movers[:6]:
             st.success(f"**{t} - {name}** → ${price:.3f} | **+{chg:.1f}%**")
     else:
-        st.info("No strong movers right now.")
+        st.info("No strong movers at the moment.")
 
-# ========== TODAY'S HIGHLIGHTS ==========
+# ==================== TODAY'S HIGHLIGHTS ====================
 elif page == "⭐ Today's Highlights":
     st.subheader("⭐ TOP 10 STOCKS WITH BEST POTENTIAL TODAY")
+    st.caption("Sorted by strongest momentum + analyst upside")
     filtered = apply_filters(all_stocks)[:10]
     for i, (ticker, name, price, chg, upside, score, vol) in enumerate(filtered, 1):
         st.success(f"**#{i} {ticker} - {name}** → ${price:.3f} | **+{chg:.1f}%** | Upside: {upside:.1f}%")
 
-# ========== TODAY'S BUYS ==========
+# ==================== TODAY'S BUYS ====================
 elif page == "🔥 Today's Buys":
     st.subheader("🔥 TODAY'S BEST BUYS (Strong Momentum)")
     filtered = apply_filters(penny_stocks)
@@ -175,144 +194,95 @@ elif page == "💵 Stocks by Price":
     for ticker, name, price, chg, upside, score, vol in filtered:
         st.success(f"**{ticker} - {name}** → ${price:.2f} | +{chg:.1f}%")
 
-# ========== OPTIONS STRATEGIES EXPLORER (NEW) ==========
+# OPTIONS STRATEGIES EXPLORER
 elif page == "📈 Options Strategies":
     st.subheader("📈 OPTIONS STRATEGIES EXPLORER")
-    st.warning("⚠️ Options are high risk. Start with paper trading first!")
+    st.warning("⚠️ High risk. Practice in Paper Trading first!")
     
     strategies = {
-        "Long Call": {
-            "outlook": "Strongly Bullish",
-            "risk": "100% of premium",
-            "reward": "Very High (unlimited)",
-            "best_for": "Expecting big upside move",
-            "complexity": "Low"
-        },
-        "Bull Call Spread": {
-            "outlook": "Moderately Bullish",
-            "risk": "Defined & Limited",
-            "reward": "Defined & Limited",
-            "best_for": "Reducing cost of long call",
-            "complexity": "Medium"
-        },
-        "Covered Call": {
-            "outlook": "Mildly Bullish / Neutral",
-            "risk": "Stock ownership risk",
-            "reward": "Limited (premium + stock gain)",
-            "best_for": "Generating income on stocks you own",
-            "complexity": "Medium"
-        },
-        "Iron Condor": {
-            "outlook": "Neutral (Range-bound)",
-            "risk": "Defined & Limited",
-            "reward": "Limited but high probability",
-            "best_for": "Low volatility expected",
-            "complexity": "High"
-        },
-        "Protective Put": {
-            "outlook": "Bullish but want protection",
-            "risk": "Cost of put (insurance)",
-            "reward": "Stock upside + downside protection",
-            "best_for": "Hedging long stock positions",
-            "complexity": "Low"
-        }
+        "Long Call": "Strongly Bullish • High risk/reward • Good for big upside moves",
+        "Bull Call Spread": "Moderately Bullish • Defined risk & reward • Lower cost than long call",
+        "Covered Call": "Mildly Bullish/Neutral • Generate income on stocks you own",
+        "Iron Condor": "Neutral (Range-bound) • High probability, limited profit & risk",
+        "Protective Put": "Bullish with protection • Like insurance for your stocks"
     }
     
-    for name, details in strategies.items():
+    for name, desc in strategies.items():
         with st.expander(f"📌 {name}"):
-            st.write(f"**Market Outlook:** {details['outlook']}")
-            st.write(f"**Max Risk:** {details['risk']}")
-            st.write(f"**Max Reward:** {details['reward']}")
-            st.write(f"**Best For:** {details['best_for']}")
-            st.write(f"**Complexity:** {details['complexity']}")
+            st.write(desc)
 
-# ========== PAPER TRADING SIMULATOR (NEW) ==========
+# PAPER TRADING SIMULATOR
 elif page == "📝 Paper Trading":
     st.subheader("📝 PAPER TRADING SIMULATOR")
-    st.info("Practice trading with **virtual money** ($10,000 starting capital)")
+    st.info("Practice with **$10,000** virtual money. Safe way to test strategies.")
     
-    # Initialize session state for paper trading
     if 'portfolio' not in st.session_state:
-        st.session_state.portfolio = {
-            'cash': 10000.0,
-            'positions': {},
-            'trades': []
-        }
+        st.session_state.portfolio = {'cash': 10000.0, 'positions': {}, 'trades': []}
     
     port = st.session_state.portfolio
     
-    # Portfolio Summary
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("Cash Balance", f"${port['cash']:.2f}")
+        st.metric("Cash", f"${port['cash']:.2f}")
     with col2:
-        total_value = port['cash']
-        for t, pos in port['positions'].items():
-            total_value += pos['shares'] * get_data(t)['price']
-        st.metric("Total Portfolio Value", f"${total_value:.2f}")
+        total = port['cash'] + sum(pos['shares'] * get_data(t)['price'] for t, pos in port['positions'].items())
+        st.metric("Portfolio Value", f"${total:.2f}")
     with col3:
         st.metric("Open Positions", len(port['positions']))
     
     st.markdown("---")
     
     # Trade Form
-    st.subheader("Place a Paper Trade")
+    st.subheader("Place Trade")
     col1, col2, col3 = st.columns(3)
-    
     with col1:
-        trade_ticker = st.selectbox("Select Stock", all_stocks)
+        trade_ticker = st.selectbox("Stock", all_stocks)
     with col2:
         action = st.selectbox("Action", ["BUY", "SELL"])
     with col3:
-        shares = st.number_input("Number of Shares", min_value=1, value=10)
+        shares = st.number_input("Shares", min_value=1, value=10)
     
     current_price = get_data(trade_ticker)['price']
-    trade_value = shares * current_price
     
-    if st.button("Execute Paper Trade"):
+    if st.button("Execute Trade"):
+        trade_value = shares * current_price
         if action == "BUY":
             if port['cash'] >= trade_value:
                 port['cash'] -= trade_value
                 if trade_ticker in port['positions']:
                     port['positions'][trade_ticker]['shares'] += shares
-                    port['positions'][trade_ticker]['avg_price'] = (
-                        (port['positions'][trade_ticker]['avg_price'] * (port['positions'][trade_ticker]['shares'] - shares) + current_price * shares) / 
-                        port['positions'][trade_ticker]['shares']
-                    )
                 else:
                     port['positions'][trade_ticker] = {'shares': shares, 'avg_price': current_price}
                 port['trades'].append(f"BUY {shares} {trade_ticker} @ ${current_price:.2f}")
-                st.success(f"✅ Bought {shares} shares of {trade_ticker}")
+                st.success("Trade executed!")
             else:
-                st.error("❌ Not enough cash!")
-        else:  # SELL
+                st.error("Not enough cash!")
+        else:
             if trade_ticker in port['positions'] and port['positions'][trade_ticker]['shares'] >= shares:
                 port['cash'] += trade_value
                 port['positions'][trade_ticker]['shares'] -= shares
                 if port['positions'][trade_ticker]['shares'] == 0:
                     del port['positions'][trade_ticker]
                 port['trades'].append(f"SELL {shares} {trade_ticker} @ ${current_price:.2f}")
-                st.success(f"✅ Sold {shares} shares of {trade_ticker}")
+                st.success("Trade executed!")
             else:
-                st.error("❌ You don't own enough shares!")
+                st.error("Not enough shares!")
+    
+    if st.button("Reset Portfolio"):
+        st.session_state.portfolio = {'cash': 10000.0, 'positions': {}, 'trades': []}
+        st.success("Portfolio reset!")
     
     st.markdown("---")
     
-    # Current Positions
-    st.subheader("📋 Current Positions")
+    # Positions
+    st.subheader("Current Positions")
     if port['positions']:
         for ticker, pos in port['positions'].items():
-            current = get_data(ticker)['price']
-            pnl = (current - pos['avg_price']) * pos['shares']
-            st.write(f"**{ticker}** — {pos['shares']} shares @ ${pos['avg_price']:.2f} | Current: ${current:.2f} | P&L: ${pnl:.2f}")
+            curr = get_data(ticker)['price']
+            pnl = (curr - pos['avg_price']) * pos['shares']
+            st.write(f"**{ticker}** — {pos['shares']} shares @ ${pos['avg_price']:.2f} | P&L: ${pnl:.2f}")
     else:
-        st.info("No open positions yet.")
-    
-    # Trade History
-    if port['trades']:
-        st.subheader("📜 Trade History")
-        for trade in port['trades'][-10:]:
-            st.write(trade)
+        st.info("No open positions.")
 
 # CHARTS & ANALYSIS
 elif page == "📊 Charts & Analysis":
