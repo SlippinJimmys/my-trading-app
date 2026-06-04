@@ -8,7 +8,7 @@ from plotly.subplots import make_subplots
 
 st.set_page_config(page_title="My Trading App", layout="wide")
 st.title("🚀 MY TRADING APP")
-st.write("**$50–$100 Account** | Smart Signals • Paper Trading • Live Intelligence")
+st.write("**$50–$100 Account** | Smart Signals • Paper Trading • Automation Ready")
 
 # ==================== STOCK LISTS ====================
 penny_stocks = ['XOS', 'SELX', 'HUBC', 'LASE', 'WCT', 'STAK', 'SBEV', 'DBGI', 'FNGR']
@@ -20,7 +20,7 @@ all_stocks = list(set(penny_stocks + big_stocks + upcoming_stocks))
 if 'theme' not in st.session_state:
     st.session_state.theme = "Dark"
 
-theme = st.sidebar.radio("🎨 Theme", ["Dark", "Light"], horizontal=True, index=0 if st.session_state.theme == "Dark" else 1)
+theme = st.sidebar.radio("🎨 Theme", ["Dark", "Light"], horizontal=True)
 st.session_state.theme = theme
 
 if theme == "Dark":
@@ -52,6 +52,7 @@ page = st.sidebar.radio(
         "📈 Big Companies",
         "💵 Stocks by Price",
         "📰 Live Intelligence",
+        "🤖 Auto-Trade Settings",
         "📈 Options Strategies",
         "📝 Paper Trading",
         "📊 Charts & Analysis",
@@ -114,31 +115,19 @@ if page == "🏠 Dashboard":
     
     with st.expander("📖 How to Use This App"):
         st.write("""
-        - Use **sidebar navigation** to switch between sections
-        - **Global Filters** affect most tabs automatically
-        - Check **⭐ Today's Highlights** for best opportunities
-        - Practice safely in **📝 Paper Trading**
-        - Use **📰 Live Intelligence** before making decisions
+        1. Use **sidebar** to navigate
+        2. Check **📰 Live Intelligence** before trading
+        3. Set your rules in **🤖 Auto-Trade Settings**
+        4. Practice in **📝 Paper Trading**
+        5. Analyze in **📊 Charts & Analysis**
         """)
-    
-    st.markdown("---")
-    st.subheader("🔥 Top Movers Right Now")
-    movers = [(t, get_data(t)['name'], get_data(t)['price'], get_data(t)['change']) 
-              for t in penny_stocks if get_data(t)['change'] >= 5]
-    movers.sort(key=lambda x: x[3], reverse=True)
-    
-    if movers:
-        for t, name, price, chg in movers[:6]:
-            st.success(f"**{t} - {name}** → ${price:.3f} | **+{chg:.1f}%**")
-    else:
-        st.info("No strong movers right now.")
 
 # ==================== TODAY'S HIGHLIGHTS ====================
 elif page == "⭐ Today's Highlights":
     st.subheader("⭐ TOP 10 STOCKS WITH BEST POTENTIAL TODAY")
     filtered = apply_filters(all_stocks)[:10]
     for i, (ticker, name, price, chg, upside, score, vol) in enumerate(filtered, 1):
-        st.success(f"**#{i} {ticker} - {name}** → ${price:.3f} | **+{chg:.1f}%** | Upside: {upside:.1f}%")
+        st.success(f"**#{i} {ticker} - {name}** → ${price:.3f} | **+{chg:.1f}%**")
 
 # ==================== TODAY'S BUYS ====================
 elif page == "🔥 Today's Buys":
@@ -192,27 +181,18 @@ elif page == "💵 Stocks by Price":
     else: min_p, max_p = 500, 9999
     
     filtered = [item for item in apply_filters(all_stocks) if min_p <= item[2] < max_p]
-    st.write(f"**Stocks between ${min_p} - ${max_p if max_p < 9999 else '500+'}**")
-    
     for ticker, name, price, chg, upside, score, vol in filtered:
         st.success(f"**{ticker} - {name}** → ${price:.2f} | +{chg:.1f}%")
 
-# ==================== LIVE INTELLIGENCE (NEW) ====================
+# ==================== LIVE INTELLIGENCE ====================
 elif page == "📰 Live Intelligence":
     st.subheader("📰 LIVE MARKET INTELLIGENCE & NEWS SENTIMENT")
-    st.caption("Real-time news + automatic sentiment analysis to help your decisions")
     
-    selected_stock = st.selectbox("Select a stock for analysis:", all_stocks)
+    selected_stock = st.selectbox("Select a stock:", all_stocks)
     
     if selected_stock:
         data = get_data(selected_stock)
         st.write(f"**{selected_stock} - {data['name']}** → ${data['price']:.2f} | {data['change']:.1f}%")
-        
-        # Simple financial sentiment word lists
-        positive_words = ['beat', 'surge', 'gain', 'rise', 'strong', 'growth', 'upgrade', 'bullish', 
-                         'record', 'profit', 'outperform', 'positive', 'rally', 'jump', 'soar']
-        negative_words = ['miss', 'drop', 'fall', 'weak', 'loss', 'downgrade', 'bearish', 'decline',
-                         'cut', 'warning', 'lawsuit', 'investigation', 'negative', 'plunge', 'crash']
         
         try:
             stock = yf.Ticker(selected_stock)
@@ -220,67 +200,82 @@ elif page == "📰 Live Intelligence":
             
             if news:
                 st.subheader("📰 Recent News + Sentiment")
+                positive_count = negative_count = neutral_count = 0
                 
-                positive_count = 0
-                negative_count = 0
-                neutral_count = 0
+                positive_words = ['beat', 'surge', 'gain', 'rise', 'strong', 'growth', 'upgrade', 'bullish', 'profit', 'rally']
+                negative_words = ['miss', 'drop', 'fall', 'weak', 'loss', 'downgrade', 'bearish', 'decline', 'warning']
                 
-                for item in news[:8]:
+                for item in news[:6]:
                     title = item.get('title', '')
-                    publisher = item.get('publisher', 'Unknown')
-                    link = item.get('link', '#')
-                    
-                    # Simple sentiment scoring
                     title_lower = title.lower()
-                    pos_score = sum(1 for word in positive_words if word in title_lower)
-                    neg_score = sum(1 for word in negative_words if word in title_lower)
+                    pos = sum(1 for w in positive_words if w in title_lower)
+                    neg = sum(1 for w in negative_words if w in title_lower)
                     
-                    if pos_score > neg_score:
+                    if pos > neg:
                         sentiment = "🟢 Positive"
-                        sentiment_color = "success"
                         positive_count += 1
-                    elif neg_score > pos_score:
+                    elif neg > pos:
                         sentiment = "🔴 Negative"
-                        sentiment_color = "error"
                         negative_count += 1
                     else:
                         sentiment = "🟡 Neutral"
-                        sentiment_color = "info"
                         neutral_count += 1
                     
                     with st.expander(f"{sentiment} | {title}"):
-                        st.write(f"**Source:** {publisher}")
-                        st.markdown(f"[Read Full Article]({link})")
+                        st.markdown(f"[Read Article]({item.get('link', '#')})")
                 
-                # Overall Sentiment Summary
                 st.markdown("---")
-                st.subheader("📊 Overall News Sentiment")
-                
+                st.subheader("📊 Overall Sentiment")
                 total = positive_count + negative_count + neutral_count
                 if total > 0:
-                    pos_pct = (positive_count / total) * 100
-                    neg_pct = (negative_count / total) * 100
-                    
-                    if pos_pct > 55:
-                        overall = "🟢 **Bullish Sentiment** – More positive news"
-                    elif neg_pct > 55:
-                        overall = "🔴 **Bearish Sentiment** – More negative news"
+                    if positive_count > negative_count:
+                        st.success("🟢 Overall: Bullish sentiment in recent news")
+                    elif negative_count > positive_count:
+                        st.error("🔴 Overall: Bearish sentiment in recent news")
                     else:
-                        overall = "🟡 **Neutral Sentiment** – Mixed news"
-                    
-                    st.write(overall)
-                    st.write(f"Positive: {positive_count} | Negative: {negative_count} | Neutral: {neutral_count}")
-                    
-                    # Simple trading advice based on sentiment
-                    if pos_pct > 60:
-                        st.success("**Trading Insight:** Positive news flow. Good environment for bullish setups.")
-                    elif neg_pct > 60:
-                        st.error("**Trading Insight:** Negative news flow. Be cautious with long positions.")
-                    else:
-                        st.info("**Trading Insight:** Mixed signals. Wait for clearer direction or use tighter risk management.")
-        
+                        st.info("🟡 Overall: Neutral / Mixed sentiment")
         except:
-            st.warning("Could not fetch live news or perform sentiment analysis right now.")
+            st.warning("Could not load news right now.")
+
+# ==================== AUTO-TRADE SETTINGS (NEW) ====================
+elif page == "🤖 Auto-Trade Settings":
+    st.subheader("🤖 AUTO-TRADE SETTINGS")
+    st.warning("⚠️ This is for **Paper Trading** only right now. Real automation coming soon.")
+    
+    if 'auto_settings' not in st.session_state:
+        st.session_state.auto_settings = {
+            'enabled': False,
+            'only_highlights': True,
+            'min_price': 2.0,
+            'max_risk_per_trade': 10,
+            'rsi_filter': True,
+            'max_daily_loss': 30,
+            'max_positions': 3
+        }
+    
+    settings = st.session_state.auto_settings
+    
+    settings['enabled'] = st.checkbox("Enable Auto-Trading (Paper Only)", value=settings['enabled'])
+    settings['only_highlights'] = st.checkbox("Only trade stocks from Today's Highlights", value=settings['only_highlights'])
+    settings['min_price'] = st.number_input("Minimum Stock Price ($)", value=settings['min_price'], step=0.5)
+    settings['max_risk_per_trade'] = st.number_input("Max Risk Per Trade ($)", value=settings['max_risk_per_trade'])
+    settings['rsi_filter'] = st.checkbox("Only buy if RSI < 35 (Oversold)", value=settings['rsi_filter'])
+    settings['max_daily_loss'] = st.number_input("Max Daily Loss Limit ($)", value=settings['max_daily_loss'])
+    settings['max_positions'] = st.number_input("Maximum Open Positions", value=settings['max_positions'], step=1)
+    
+    st.markdown("---")
+    st.subheader("Current Auto-Trade Rules Summary")
+    st.write(f"""
+    - Auto Trading: **{'Enabled' if settings['enabled'] else 'Disabled'}**
+    - Only trade Highlights: **{settings['only_highlights']}**
+    - Min Price: **${settings['min_price']}**
+    - Max Risk per Trade: **${settings['max_risk_per_trade']}**
+    - RSI Filter: **{settings['rsi_filter']}**
+    - Max Daily Loss: **${settings['max_daily_loss']}**
+    - Max Positions: **{settings['max_positions']}**
+    """)
+    
+    st.info("💡 These settings will be used when we connect to Alpaca paper trading in the future.")
 
 # OPTIONS STRATEGIES
 elif page == "📈 Options Strategies":
@@ -294,7 +289,6 @@ elif page == "📈 Options Strategies":
         "Iron Condor": "Neutral • High probability",
         "Protective Put": "Bullish with protection"
     }
-    
     for name, desc in strategies.items():
         with st.expander(f"📌 {name}"):
             st.write(desc)
@@ -331,14 +325,12 @@ elif page == "📝 Paper Trading":
                 port['positions'][trade_ticker]['shares'] += shares
             else:
                 port['positions'][trade_ticker] = {'shares': shares, 'avg_price': price}
-            port['trades'].append(f"BUY {shares} {trade_ticker}")
             st.success("Trade executed!")
         elif action == "SELL" and trade_ticker in port['positions'] and port['positions'][trade_ticker]['shares'] >= shares:
             port['cash'] += value
             port['positions'][trade_ticker]['shares'] -= shares
             if port['positions'][trade_ticker]['shares'] == 0:
                 del port['positions'][trade_ticker]
-            port['trades'].append(f"SELL {shares} {trade_ticker}")
             st.success("Trade executed!")
         else:
             st.error("Invalid trade!")
@@ -346,11 +338,6 @@ elif page == "📝 Paper Trading":
     if st.button("Reset Portfolio"):
         st.session_state.portfolio = {'cash': 10000.0, 'positions': {}, 'trades': []}
         st.success("Portfolio reset!")
-    
-    st.subheader("Current Positions")
-    for t, p in port['positions'].items():
-        curr = get_data(t)['price']
-        st.write(f"**{t}** — {p['shares']} shares @ ${p['avg_price']:.2f} | P&L: ${(curr - p['avg_price']) * p['shares']:.2f}")
 
 # CHARTS & ANALYSIS
 elif page == "📊 Charts & Analysis":
@@ -371,7 +358,7 @@ elif page == "📊 Charts & Analysis":
         try:
             hist = yf.Ticker(selected_stock).history(period=f"{days}d")
             if hist.empty or len(hist) < 50:
-                st.warning("Not enough data for this timeframe.")
+                st.warning("Not enough data.")
             else:
                 hist['SMA20'] = hist['Close'].rolling(20).mean()
                 hist['SMA50'] = hist['Close'].rolling(50).mean()
