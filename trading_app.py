@@ -19,6 +19,12 @@ capital = st.sidebar.number_input("My Capital ($)", value=50, min_value=10)
 max_risk = st.sidebar.slider("Max Risk per Trade ($)", 5, 20, 10)
 
 st.sidebar.markdown("---")
+st.sidebar.subheader("🔍 Global Filters")
+
+price_sort = st.sidebar.selectbox("Sort by Price", ["None", "Lowest → Highest", "Highest → Lowest"])
+potential_sort = st.sidebar.selectbox("Sort by Potential", ["None", "Most Potential → Least"])
+
+st.sidebar.markdown("---")
 page = st.sidebar.radio(
     "📍 Navigation",
     [
@@ -48,6 +54,27 @@ def get_data(ticker):
         }
     except:
         return {'price': 0, 'change': 0, 'target': 0, 'name': ticker, 'volume': 0}
+
+def apply_filters(stock_list):
+    """Apply global price and potential filters"""
+    data_list = []
+    for ticker in stock_list:
+        data = get_data(ticker)
+        upside = ((data['target'] / data['price']) - 1) * 100 if data['price'] > 0 else 0
+        potential_score = data['change'] * 0.6 + upside * 0.4  # Weighted score
+        data_list.append((ticker, data['name'], data['price'], data['change'], upside, potential_score, data['volume']))
+    
+    # Apply price sort
+    if price_sort == "Lowest → Highest":
+        data_list.sort(key=lambda x: x[2])
+    elif price_sort == "Highest → Lowest":
+        data_list.sort(key=lambda x: x[2], reverse=True)
+    
+    # Apply potential sort
+    if potential_sort == "Most Potential → Least":
+        data_list.sort(key=lambda x: x[5], reverse=True)
+    
+    return data_list
 
 if st.button("🔄 Refresh All Data"):
     st.rerun()
@@ -85,56 +112,46 @@ if page == "🏠 Dashboard":
     else:
         st.info("No strong movers right now.")
 
-# ========== TODAY'S HIGHLIGHTS (NEW) ==========
+# ========== TODAY'S HIGHLIGHTS ==========
 elif page == "⭐ Today's Highlights":
     st.subheader("⭐ TOP 10 STOCKS WITH BEST POTENTIAL TODAY")
-    st.write("**Strongest momentum + volume right now**")
-    
-    all_data = []
-    for ticker in all_stocks:
-        data = get_data(ticker)
-        if data['change'] > 0 and data['volume'] > 100000:
-            all_data.append((ticker, data['name'], data['price'], data['change'], data['volume']))
-    
-    all_data.sort(key=lambda x: x[3], reverse=True)
-    
-    for i, (ticker, name, price, chg, vol) in enumerate(all_data[:10], 1):
-        st.success(f"**#{i} {ticker} - {name}** → ${price:.3f} | **+{chg:.1f}%** | Vol: {vol:,}")
+    filtered = apply_filters(all_stocks)[:10]
+    for i, (ticker, name, price, chg, upside, score, vol) in enumerate(filtered, 1):
+        st.success(f"**#{i} {ticker} - {name}** → ${price:.3f} | **+{chg:.1f}%** | Upside: {upside:.1f}%")
 
 # ========== TODAY'S BUYS ==========
 elif page == "🔥 Today's Buys":
     st.subheader("🔥 TODAY'S BEST BUYS (Strong Momentum)")
-    for ticker in penny_stocks:
-        data = get_data(ticker)
-        if data['change'] >= 10:
-            st.success(f"🟢 **STRONG BUY** {ticker} - {data['name']} → ${data['price']:.3f} | **+{data['change']:.1f}%**")
+    filtered = apply_filters(penny_stocks)
+    for ticker, name, price, chg, upside, score, vol in filtered:
+        if chg >= 10:
+            st.success(f"🟢 **STRONG BUY** {ticker} - {name} → ${price:.3f} | **+{chg:.1f}%**")
             st.write(f"   → Risk max ${max_risk} | Target: +20-40% today")
-        elif data['change'] >= 5:
-            st.info(f"🟡 **CONSIDER** {ticker} - {data['name']} → ${data['price']:.3f} | +{data['change']:.1f}%")
+        elif chg >= 5:
+            st.info(f"🟡 **CONSIDER** {ticker} - {name} → ${price:.3f} | +{chg:.1f}%")
 
 # 1 WEEK BUYS
 elif page == "📅 1 Week Buys":
     st.subheader("📅 1 WEEK BUYS")
-    for ticker in penny_stocks:
-        data = get_data(ticker)
-        if data['change'] > 3:
-            st.success(f"📈 **BUY** {ticker} - {data['name']} → ${data['price']:.3f} | +{data['change']:.1f}%")
+    filtered = apply_filters(penny_stocks)
+    for ticker, name, price, chg, upside, score, vol in filtered:
+        if chg > 3:
+            st.success(f"📈 **BUY** {ticker} - {name} → ${price:.3f} | +{chg:.1f}%")
 
 # 1 MONTH BUYS
 elif page == "📆 1 Month Buys":
     st.subheader("📆 1 MONTH BUYS")
-    for ticker in penny_stocks:
-        data = get_data(ticker)
-        if data['price'] < 8 and data['change'] > 2:
-            st.success(f"🏦 **BUY** {ticker} - {data['name']} → ${data['price']:.3f} | +{data['change']:.1f}%")
+    filtered = apply_filters(penny_stocks)
+    for ticker, name, price, chg, upside, score, vol in filtered:
+        if price < 8 and chg > 2:
+            st.success(f"🏦 **BUY** {ticker} - {name} → ${price:.3f} | +{chg:.1f}%")
 
 # BIG COMPANIES
 elif page == "📈 Big Companies":
     st.subheader("📈 BIG COMPANIES + GROWTH STOCKS - Long Term Outlook")
-    for ticker in big_stocks + upcoming_stocks:
-        data = get_data(ticker)
-        upside = ((data['target'] / data['price']) - 1) * 100 if data['price'] > 0 else 0
-        st.write(f"**{ticker} - {data['name']}** → ${data['price']:.2f}")
+    filtered = apply_filters(big_stocks + upcoming_stocks)
+    for ticker, name, price, chg, upside, score, vol in filtered:
+        st.write(f"**{ticker} - {name}** → ${price:.2f}")
         col1, col2, col3, col4 = st.columns(4)
         with col1: st.write("**1M**" if upside > 8 else "1M")
         with col2: st.write("**3M**" if upside > 10 else "3M")
@@ -143,12 +160,10 @@ elif page == "📈 Big Companies":
             if upside > 15: st.success(f"+{upside:.1f}%")
             else: st.write(f"+{upside:.1f}%")
 
-# STOCKS BY PRICE + FILTER
+# STOCKS BY PRICE
 elif page == "💵 Stocks by Price":
-    st.subheader("💵 STOCKS BY PRICE RANGE + FILTER")
-    
+    st.subheader("💵 STOCKS BY PRICE RANGE")
     price_range = st.selectbox("Select Price Range:", ["$100-$200", "$200-$300", "$300-$400", "$400-$500", "$500+"])
-    sort_order = st.selectbox("Sort by Price:", ["Lowest to Highest", "Highest to Lowest"])
     
     if price_range == "$100-$200": min_p, max_p = 100, 200
     elif price_range == "$200-$300": min_p, max_p = 200, 300
@@ -156,20 +171,10 @@ elif page == "💵 Stocks by Price":
     elif price_range == "$400-$500": min_p, max_p = 400, 500
     else: min_p, max_p = 500, 9999
     
-    filtered = []
-    for ticker in all_stocks:
-        data = get_data(ticker)
-        if min_p <= data['price'] < max_p:
-            filtered.append((ticker, data['name'], data['price'], data['change']))
+    filtered = [item for item in apply_filters(all_stocks) if min_p <= item[2] < max_p]
+    st.write(f"**Stocks between ${min_p} - ${max_p if max_p < 9999 else '500+'}**")
     
-    if sort_order == "Lowest to Highest":
-        filtered.sort(key=lambda x: x[2])
-    else:
-        filtered.sort(key=lambda x: x[2], reverse=True)
-    
-    st.write(f"**Stocks between ${min_p} - ${max_p if max_p < 9999 else '500+'}** ({sort_order})")
-    
-    for ticker, name, price, chg in filtered:
+    for ticker, name, price, chg, upside, score, vol in filtered:
         st.success(f"**{ticker} - {name}** → ${price:.2f} | +{chg:.1f}%")
 
 # CHARTS & ANALYSIS
