@@ -42,20 +42,20 @@ potential_sort = st.sidebar.selectbox("Sort by Potential", ["None", "Most Potent
 
 st.sidebar.markdown("---")
 
-# ==================== NAVIGATION WITH SQUARE BUTTONS ====================
+# ==================== CLEAN NAVIGATION + SQUARE SELECTION ====================
 st.sidebar.markdown("### 📍 Navigation")
 
-# Custom CSS to make radio buttons square instead of circles
+# CSS to turn radio buttons into squares
 st.markdown("""
 <style>
-/* Make radio buttons square */
+/* Square radio buttons */
 div[data-testid="stSidebar"] .stRadio input[type="radio"] {
     appearance: none;
     -webkit-appearance: none;
     width: 20px;
     height: 20px;
     border: 2px solid #666;
-    border-radius: 4px;           /* Square corners */
+    border-radius: 4px;
     background-color: #1a1a1a;
     cursor: pointer;
     position: relative;
@@ -66,7 +66,6 @@ div[data-testid="stSidebar"] .stRadio input[type="radio"]:checked {
     border-color: #00BFFF;
 }
 
-/* Add checkmark when selected */
 div[data-testid="stSidebar"] .stRadio input[type="radio"]:checked::after {
     content: "✓";
     color: white;
@@ -77,7 +76,7 @@ div[data-testid="stSidebar"] .stRadio input[type="radio"]:checked::after {
     transform: translate(-50%, -50%);
 }
 
-/* Make labels bigger and cleaner */
+/* Bigger and cleaner labels */
 div[data-testid="stSidebar"] .stRadio > label {
     font-size: 15px !important;
     font-weight: 600;
@@ -266,7 +265,6 @@ elif page == "📰 Live Intelligence":
         except:
             st.warning("Could not load news right now.")
 
-# ==================== AUTO-TRADE SETTINGS ====================
 elif page == "🤖 Auto-Trade Settings":
     st.subheader("🤖 AUTO-TRADE SETTINGS & SCHEDULED MODE")
     st.warning("Currently works in **Paper Trading** mode only.")
@@ -278,7 +276,7 @@ elif page == "🤖 Auto-Trade Settings":
             'only_todays_buys': False,
             'min_price': 2.0,
             'max_price': 100.0,
-            'max_capital_per_trade': 50.0,        # ← Changed to float
+            'max_capital_per_trade': 50.0,
             'max_risk_per_trade': 10.0,
             'rsi_filter': True,
             'max_daily_loss': 30.0,
@@ -304,7 +302,6 @@ elif page == "🤖 Auto-Trade Settings":
     settings['only_highlights'] = st.checkbox("Only trade stocks from Today's Highlights", value=settings['only_highlights'])
     settings['only_todays_buys'] = st.checkbox("Only Auto Trade Today's Buys (Strong Momentum)", value=settings['only_todays_buys'])
     
-    # All number inputs now use float for consistency
     settings['min_price'] = st.number_input("Minimum Stock Price ($)", value=float(settings['min_price']), step=0.5)
     settings['max_price'] = st.number_input("Maximum Stock Price ($)", value=float(settings['max_price']), step=1.0)
     settings['max_capital_per_trade'] = st.number_input("Max Capital Per Trade ($)", value=float(settings['max_capital_per_trade']), step=5.0)
@@ -314,6 +311,8 @@ elif page == "🤖 Auto-Trade Settings":
     settings['max_positions'] = st.number_input("Maximum Open Positions", value=int(settings['max_positions']), step=1)
     
     settings['rsi_filter'] = st.checkbox("Only buy if RSI < 35 (Oversold)", value=settings['rsi_filter'])
+    
+    st.markdown("---")
     
     # Daily Performance
     st.subheader("📊 Daily Performance & Targets")
