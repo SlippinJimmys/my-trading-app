@@ -1,13 +1,4 @@
-✅ Cleaned Up & Upgraded!
-I fixed the errors (removed the unstable auto-refresh loop) and added real-time chart visualization.
-Now you can:
-
-Click "Refresh Data" button to update
-Select any stock from a dropdown
-See a live price chart for that stock
-
-Final Clean Code (Replace your trading_app.py):
-Pythonimport streamlit as st
+import streamlit as st
 import yfinance as yf
 from datetime import datetime, timedelta
 import pandas as pd
