@@ -7,9 +7,23 @@ st.set_page_config(page_title="My Trading App", layout="wide")
 st.title("🚀 MY TRADING APP - Clean & Easy")
 st.write("**$50-$100 Account** | Clear Buy Signals + Charts")
 
+# Expanded lists
 penny_stocks = ['XOS', 'SELX', 'HUBC', 'LASE', 'WCT', 'STAK', 'SBEV', 'DBGI', 'FNGR']
-big_stocks = ['NVDA', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'TSLA', 'META']
-all_stocks = list(set(penny_stocks + big_stocks))
+
+# S&P 500 + Major Companies
+big_stocks = [
+    'NVDA', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'TSLA', 'META', 
+    'AVGO', 'COST', 'NFLX', 'ADBE', 'CRM', 'AMD', 'INTC', 
+    'QCOM', 'TXN', 'MU', 'AMAT', 'LRCX', 'KLAC', 'PANW', 'CRWD'
+]
+
+# Up & Coming Growth Stocks
+upcoming_stocks = [
+    'PLTR', 'ARM', 'SMCI', 'SNOW', 'DDOG', 'NET', 'MDB', 
+    'ZS', 'OKTA', 'RBLX', 'COIN', 'HOOD', 'SOFI', 'RDDT', 'APP'
+]
+
+all_stocks = list(set(penny_stocks + big_stocks + upcoming_stocks))
 
 st.sidebar.header("Settings")
 capital = st.sidebar.number_input("My Capital ($)", value=50, min_value=10)
@@ -73,11 +87,11 @@ elif page == "📆 1 Month Buys":
         if data['price'] < 8 and data['change'] > 2:
             st.success(f"🏦 **BUY** {ticker} → ${data['price']:.3f} | +{data['change']:.1f}%")
 
-# BIG COMPANIES (CLEANED)
+# BIG COMPANIES (Expanded with S&P 500 + Growth)
 elif page == "📈 Big Companies":
-    st.subheader("📈 BIG COMPANIES - Long Term Outlook")
+    st.subheader("📈 BIG COMPANIES + GROWTH STOCKS - Long Term Outlook")
     
-    for ticker in big_stocks:
+    for ticker in big_stocks + upcoming_stocks:
         data = get_data(ticker)
         upside = ((data['target'] / data['price']) - 1) * 100 if data['price'] > 0 else 0
         
@@ -86,63 +100,56 @@ elif page == "📈 Big Companies":
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            if upside > 8:
-                st.success("**1 Month:** Bullish")
-            else:
-                st.info("**1 Month:** Neutral")
+            if upside > 8: st.success("**1M:** Bullish")
+            else: st.info("**1M:** Neutral")
         
         with col2:
-            if upside > 10:
-                st.success("**3 Month:** Positive")
-            else:
-                st.info("**3 Month:** Neutral")
+            if upside > 10: st.success("**3M:** Positive")
+            else: st.info("**3M:** Neutral")
         
         with col3:
-            if upside > 12:
-                st.success("**6 Month:** Strong")
-            else:
-                st.info("**6 Month:** Moderate")
+            if upside > 12: st.success("**6M:** Strong")
+            else: st.info("**6M:** Moderate")
         
         with col4:
             if upside > 15:
-                st.success(f"**12 Month:** +{upside:.1f}%")
+                st.success(f"**12M:** +{upside:.1f}%")
             elif upside > 8:
-                st.info(f"**12 Month:** +{upside:.1f}%")
+                st.info(f"**12M:** +{upside:.1f}%")
             else:
-                st.warning(f"**12 Month:** +{upside:.1f}%")
+                st.warning(f"**12M:** +{upside:.1f}%")
 
-# STOCKS BY PRICE (CLEANED)
+# STOCKS BY PRICE (Expanded list)
 elif page == "💵 Stocks by Price":
-    st.subheader("💵 STOCKS BY PRICE RANGE")
+    st.subheader("💵 STOCKS BY PRICE RANGE (S&P 500 + Growth)")
     
     price_range = st.selectbox(
         "Select Price Range:",
-        ["$100 - $200", "$200 - $300", "$300 - $400", "$400 - $500"]
+        ["$100 - $200", "$200 - $300", "$300 - $400", "$400 - $500", "$500+"]
     )
     
-    min_price = 100
-    max_price = 200
-    
     if price_range == "$100 - $200":
-        min_price, max_price = 100, 200
+        min_p, max_p = 100, 200
     elif price_range == "$200 - $300":
-        min_price, max_price = 200, 300
+        min_p, max_p = 200, 300
     elif price_range == "$300 - $400":
-        min_price, max_price = 300, 400
+        min_p, max_p = 300, 400
     elif price_range == "$400 - $500":
-        min_price, max_price = 400, 500
+        min_p, max_p = 400, 500
+    else:
+        min_p, max_p = 500, 9999
     
-    st.write(f"**Showing stocks between ${min_price} - ${max_price}**")
+    st.write(f"**Showing stocks between ${min_p} - ${max_p if max_p < 9999 else '500+'}**")
     
     found = False
     for ticker in all_stocks:
         data = get_data(ticker)
-        if min_price <= data['price'] < max_price:
+        if min_p <= data['price'] < max_p:
             st.success(f"**{ticker}** → ${data['price']:.2f} | +{data['change']:.1f}%")
             found = True
     
     if not found:
-        st.info(f"No stocks currently in the ${min_price}-${max_price} range.")
+        st.info(f"No stocks currently in this price range.")
 
 # CHARTS & ANALYSIS
 elif page == "📊 Charts & Analysis":
