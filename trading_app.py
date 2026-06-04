@@ -4,7 +4,7 @@ from datetime import datetime
 import pytz
 import pandas as pd
 import plotly.graph_objects as go
-
+from plotly.subplots import make_subplots
 st.set_page_config(page_title="My Trading App", layout="wide")
 st.title("🚀 MY TRADING APP")
 st.write("**$50–$100 Account** | Smart Signals • Paper Trading • Options Education")
