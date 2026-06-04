@@ -199,46 +199,88 @@ elif page == "💵 Stocks by Price":
 
 # ==================== LIVE INTELLIGENCE (NEW) ====================
 elif page == "📰 Live Intelligence":
-    st.subheader("📰 LIVE MARKET INTELLIGENCE & NEWS")
+    st.subheader("📰 LIVE MARKET INTELLIGENCE & NEWS SENTIMENT")
+    st.caption("Real-time news + automatic sentiment analysis to help your decisions")
     
-    selected_stock = st.selectbox("Select a stock:", all_stocks)
+    selected_stock = st.selectbox("Select a stock for analysis:", all_stocks)
     
     if selected_stock:
         data = get_data(selected_stock)
         st.write(f"**{selected_stock} - {data['name']}** → ${data['price']:.2f} | {data['change']:.1f}%")
+        
+        # Simple financial sentiment word lists
+        positive_words = ['beat', 'surge', 'gain', 'rise', 'strong', 'growth', 'upgrade', 'bullish', 
+                         'record', 'profit', 'outperform', 'positive', 'rally', 'jump', 'soar']
+        negative_words = ['miss', 'drop', 'fall', 'weak', 'loss', 'downgrade', 'bearish', 'decline',
+                         'cut', 'warning', 'lawsuit', 'investigation', 'negative', 'plunge', 'crash']
         
         try:
             stock = yf.Ticker(selected_stock)
             news = stock.news
             
             if news:
-                st.subheader("📰 Recent News")
-                for item in news[:5]:
+                st.subheader("📰 Recent News + Sentiment")
+                
+                positive_count = 0
+                negative_count = 0
+                neutral_count = 0
+                
+                for item in news[:8]:
                     title = item.get('title', '')
-                    publisher = item.get('publisher', '')
+                    publisher = item.get('publisher', 'Unknown')
                     link = item.get('link', '#')
-                    with st.expander(f"🗞️ {title}"):
+                    
+                    # Simple sentiment scoring
+                    title_lower = title.lower()
+                    pos_score = sum(1 for word in positive_words if word in title_lower)
+                    neg_score = sum(1 for word in negative_words if word in title_lower)
+                    
+                    if pos_score > neg_score:
+                        sentiment = "🟢 Positive"
+                        sentiment_color = "success"
+                        positive_count += 1
+                    elif neg_score > pos_score:
+                        sentiment = "🔴 Negative"
+                        sentiment_color = "error"
+                        negative_count += 1
+                    else:
+                        sentiment = "🟡 Neutral"
+                        sentiment_color = "info"
+                        neutral_count += 1
+                    
+                    with st.expander(f"{sentiment} | {title}"):
                         st.write(f"**Source:** {publisher}")
-                        st.markdown(f"[Read Article]({link})")
-            else:
-                st.info("No recent news found.")
+                        st.markdown(f"[Read Full Article]({link})")
+                
+                # Overall Sentiment Summary
+                st.markdown("---")
+                st.subheader("📊 Overall News Sentiment")
+                
+                total = positive_count + negative_count + neutral_count
+                if total > 0:
+                    pos_pct = (positive_count / total) * 100
+                    neg_pct = (negative_count / total) * 100
+                    
+                    if pos_pct > 55:
+                        overall = "🟢 **Bullish Sentiment** – More positive news"
+                    elif neg_pct > 55:
+                        overall = "🔴 **Bearish Sentiment** – More negative news"
+                    else:
+                        overall = "🟡 **Neutral Sentiment** – Mixed news"
+                    
+                    st.write(overall)
+                    st.write(f"Positive: {positive_count} | Negative: {negative_count} | Neutral: {neutral_count}")
+                    
+                    # Simple trading advice based on sentiment
+                    if pos_pct > 60:
+                        st.success("**Trading Insight:** Positive news flow. Good environment for bullish setups.")
+                    elif neg_pct > 60:
+                        st.error("**Trading Insight:** Negative news flow. Be cautious with long positions.")
+                    else:
+                        st.info("**Trading Insight:** Mixed signals. Wait for clearer direction or use tighter risk management.")
+        
         except:
-            st.warning("Could not load news right now.")
-        
-        st.markdown("---")
-        st.subheader("📌 Quick Sentiment & Advice")
-        
-        chg = data['change']
-        if chg > 8:
-            st.success("🔥 Very Bullish – Strong momentum")
-        elif chg > 3:
-            st.info("📈 Bullish – Positive move")
-        elif chg < -8:
-            st.error("⚠️ Very Bearish – Sharp drop")
-        elif chg < -3:
-            st.warning("📉 Bearish – Downward pressure")
-        else:
-            st.write("➡️ Neutral – No strong move")
+            st.warning("Could not fetch live news or perform sentiment analysis right now.")
 
 # OPTIONS STRATEGIES
 elif page == "📈 Options Strategies":
