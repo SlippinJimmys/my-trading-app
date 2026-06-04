@@ -284,30 +284,60 @@ elif page == "📝 Paper Trading":
     else:
         st.info("No open positions.")
 
-# ==================== CHARTS & ANALYSIS ====================
+# ==================== CHARTS & ANALYSIS (IMPROVED) ====================
 elif page == "📊 Charts & Analysis":
-    st.subheader("📊 INTERACTIVE CANDLESTICK CHARTS + TECHNICAL INDICATORS")
+    st.subheader("📊 ADVANCED CHARTS & TECHNICAL ANALYSIS")
     
-    selected_stock = st.selectbox("Select a stock:", all_stocks)
+    selected_stock = st.selectbox("Select a stock to analyze:", all_stocks)
     
     if selected_stock:
         data = get_data(selected_stock)
-        st.write(f"**{selected_stock} - {data['name']}** → ${data['price']:.2f} | {data['change']:.1f}%")
+        st.write(f"**{selected_stock} - {data['name']}** → ${data['price']:.2f} | Change: **{data['change']:.1f}%**")
         
-        # Indicator Toggles
-        col1, col2, col3 = st.columns(3)
+        # Controls
+        col1, col2, col3 = st.columns([2, 2, 2])
+        
         with col1:
-            show_sma20 = st.checkbox("SMA 20", value=True)
+            timeframe = st.selectbox("Timeframe", ["30 Days", "60 Days", "90 Days", "180 Days"], index=2)
         with col2:
-            show_sma50 = st.checkbox("SMA 50", value=True)
+            show_ma = st.checkbox("Show Moving Averages", value=True)
         with col3:
-            show_bbands = st.checkbox("Bollinger Bands", value=False)
+            show_bbands = st.checkbox("Show Bollinger Bands", value=True)
+        
+        # Convert timeframe to days
+        days_map = {"30 Days": 30, "60 Days": 60, "90 Days": 90, "180 Days": 180}
+        days = days_map[timeframe]
         
         try:
-            hist = yf.Ticker(selected_stock).history(period="90d")
+            hist = yf.Ticker(selected_stock).history(period=f"{days}d")
             
-            if not hist.empty:
-                fig = go.Figure()
+            if not hist.empty and len(hist) > 20:
+                
+                # Calculate indicators
+                hist['SMA20'] = hist['Close'].rolling(window=20).mean()
+                hist['SMA50'] = hist['Close'].rolling(window=50).mean()
+                
+                # Bollinger Bands
+                sma20 = hist['Close'].rolling(window=20).mean()
+                std20 = hist['Close'].rolling(window=20).std()
+                hist['UpperBand'] = sma20 + (std20 * 2)
+                hist['LowerBand'] = sma20 - (std20 * 2)
+                
+                # RSI
+                delta = hist['Close'].diff()
+                gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+                loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+                rs = gain / loss
+                hist['RSI'] = 100 - (100 / (1 + rs))
+                
+                # Create subplots
+                fig = make_subplots(
+                    rows=2, cols=1,
+                    shared_xaxes=True,
+                    vertical_spacing=0.08,
+                    row_heights=[0.7, 0.3],
+                    subplot_titles=(f"{selected_stock} Price", "RSI (14)")
+                )
                 
                 # Candlestick
                 fig.add_trace(go.Candlestick(
@@ -317,59 +347,75 @@ elif page == "📊 Charts & Analysis":
                     low=hist['Low'],
                     close=hist['Close'],
                     name="Price"
-                ))
+                ), row=1, col=1)
                 
-                # SMA 20
-                if show_sma20:
-                    sma20 = hist['Close'].rolling(window=20).mean()
+                # Moving Averages
+                if show_ma:
                     fig.add_trace(go.Scatter(
-                        x=hist.index, y=sma20,
+                        x=hist.index, y=hist['SMA20'],
                         line=dict(color='orange', width=1.5),
                         name="SMA 20"
-                    ))
-                
-                # SMA 50
-                if show_sma50:
-                    sma50 = hist['Close'].rolling(window=50).mean()
+                    ), row=1, col=1)
+                    
                     fig.add_trace(go.Scatter(
-                        x=hist.index, y=sma50,
-                        line=dict(color='blue', width=1.5),
+                        x=hist.index, y=hist['SMA50'],
+                        line=dict(color='#00BFFF', width=1.5),
                         name="SMA 50"
-                    ))
+                    ), row=1, col=1)
                 
                 # Bollinger Bands
                 if show_bbands:
-                    sma20 = hist['Close'].rolling(window=20).mean()
-                    std20 = hist['Close'].rolling(window=20).std()
-                    upper_band = sma20 + (std20 * 2)
-                    lower_band = sma20 - (std20 * 2)
-                    
                     fig.add_trace(go.Scatter(
-                        x=hist.index, y=upper_band,
+                        x=hist.index, y=hist['UpperBand'],
                         line=dict(color='gray', width=1, dash='dot'),
                         name="Upper Band"
-                    ))
+                    ), row=1, col=1)
+                    
                     fig.add_trace(go.Scatter(
-                        x=hist.index, y=lower_band,
+                        x=hist.index, y=hist['LowerBand'],
                         line=dict(color='gray', width=1, dash='dot'),
                         name="Lower Band",
                         fill='tonexty',
                         fillcolor='rgba(128,128,128,0.1)'
-                    ))
+                    ), row=1, col=1)
                 
+                # RSI
+                fig.add_trace(go.Scatter(
+                    x=hist.index, y=hist['RSI'],
+                    line=dict(color='purple', width=1.5),
+                    name="RSI"
+                ), row=2, col=1)
+                
+                # RSI overbought/oversold lines
+                fig.add_hline(y=70, line_dash="dash", line_color="red", row=2, col=1)
+                fig.add_hline(y=30, line_dash="dash", line_color="green", row=2, col=1)
+                
+                # Layout
                 fig.update_layout(
-                    title=f"{selected_stock} - {data['name']} (Last 90 Days)",
-                    xaxis_title="Date",
-                    yaxis_title="Price ($)",
-                    height=550,
-                    xaxis_rangeslider_visible=True,
+                    height=650,
+                    showlegend=True,
+                    xaxis_rangeslider_visible=False,
                     template="plotly_dark",
+                    title=f"{selected_stock} - {data['name']} ({timeframe})",
                     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
                 )
                 
+                fig.update_yaxes(title_text="Price ($)", row=1, col=1)
+                fig.update_yaxes(title_text="RSI", row=2, col=1, range=[0, 100])
+                
                 st.plotly_chart(fig, use_container_width=True)
-                st.caption("Toggle indicators above • Zoom & hover for details")
+                
+                # Quick Interpretation
+                latest_rsi = hist['RSI'].iloc[-1]
+                if latest_rsi > 70:
+                    st.warning(f"**RSI is {latest_rsi:.1f}** → Overbought zone (possible pullback)")
+                elif latest_rsi < 30:
+                    st.success(f"**RSI is {latest_rsi:.1f}** → Oversold zone (possible bounce)")
+                else:
+                    st.info(f"**RSI is {latest_rsi:.1f}** → Neutral territory")
+                
             else:
-                st.warning("No chart data available.")
+                st.warning("Not enough data to calculate indicators.")
+                
         except Exception as e:
-            st.warning(f"Could not load chart: {str(e)}")
+            st.error(f"Error loading chart: {str(e)}")
