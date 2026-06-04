@@ -10,6 +10,45 @@ st.set_page_config(page_title="My Trading App", layout="wide")
 st.title("🚀 MY TRADING APP")
 st.write("**$50–$100 Account** | Smart Signals • Paper Trading • Automation Ready")
 
+# ==================== CUSTOM CSS FOR SQUARE SELECTORS ====================
+st.markdown("""
+<style>
+/* Make navigation radio buttons into squares */
+div[data-testid="stSidebar"] .stRadio input[type="radio"] {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    width: 20px !important;
+    height: 20px !important;
+    border: 2px solid #666 !important;
+    border-radius: 4px !important;
+    background-color: #1a1a1a !important;
+    cursor: pointer !important;
+    position: relative !important;
+}
+
+div[data-testid="stSidebar"] .stRadio input[type="radio"]:checked {
+    background-color: #00BFFF !important;
+    border-color: #00BFFF !important;
+}
+
+div[data-testid="stSidebar"] .stRadio input[type="radio"]:checked::after {
+    content: "✓" !important;
+    color: white !important;
+    font-size: 14px !important;
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+}
+
+/* Bigger navigation text */
+div[data-testid="stSidebar"] .stRadio > label {
+    font-size: 15px !important;
+    font-weight: 600 !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # ==================== STOCK LISTS ====================
 penny_stocks = ['XOS', 'SELX', 'HUBC', 'LASE', 'WCT', 'STAK', 'SBEV', 'DBGI', 'FNGR']
 big_stocks = ['NVDA', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'TSLA', 'META', 'AVGO', 'COST', 'NFLX', 'ADBE', 'CRM', 'AMD', 'INTC', 'QCOM', 'TXN', 'MU', 'AMAT', 'LRCX', 'KLAC', 'PANW', 'CRWD']
@@ -42,48 +81,8 @@ potential_sort = st.sidebar.selectbox("Sort by Potential", ["None", "Most Potent
 
 st.sidebar.markdown("---")
 
-# ==================== CLEAN NAVIGATION + SQUARE SELECTION ====================
+# ==================== CLEAN NAVIGATION ====================
 st.sidebar.markdown("### 📍 Navigation")
-
-# CSS to turn radio buttons into squares
-st.markdown("""
-<style>
-/* Square radio buttons */
-div[data-testid="stSidebar"] .stRadio input[type="radio"] {
-    appearance: none;
-    -webkit-appearance: none;
-    width: 20px;
-    height: 20px;
-    border: 2px solid #666;
-    border-radius: 4px;
-    background-color: #1a1a1a;
-    cursor: pointer;
-    position: relative;
-}
-
-div[data-testid="stSidebar"] .stRadio input[type="radio"]:checked {
-    background-color: #00BFFF;
-    border-color: #00BFFF;
-}
-
-div[data-testid="stSidebar"] .stRadio input[type="radio"]:checked::after {
-    content: "✓";
-    color: white;
-    font-size: 14px;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-}
-
-/* Bigger and cleaner labels */
-div[data-testid="stSidebar"] .stRadio > label {
-    font-size: 15px !important;
-    font-weight: 600;
-    padding-left: 8px;
-}
-</style>
-""", unsafe_allow_html=True)
 
 page = st.sidebar.radio(
     "",
