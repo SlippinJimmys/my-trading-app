@@ -7,7 +7,6 @@ st.set_page_config(page_title="My Trading App", layout="wide")
 st.title("🚀 MY TRADING APP - Easy Buy Recommendations")
 st.write("**$50-$100 Account** | Clear Signals | Updated June 2026")
 
-# Stocks to monitor
 penny_stocks = ['XOS', 'SELX', 'HUBC', 'LASE', 'WCT', 'STAK', 'SBEV', 'DBGI', 'FNGR']
 big_stocks = ['NVDA', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'TSLA', 'META']
 
@@ -40,57 +39,72 @@ while True:
     with placeholder.container():
         st.write(f"**Last Updated:** {datetime.now().strftime('%H:%M:%S')}")
 
-        # ========== TODAY'S BUYS ==========
+        # TODAY'S BUYS
         with tab1:
             st.subheader("🔥 TODAY'S BEST BUYS (Strong Momentum)")
-            st.write("**Best stocks right now for quick gains**")
-            
-            strong_buys = []
             for ticker in penny_stocks:
                 data = get_data(ticker)
                 if data['change'] >= 10:
                     st.success(f"🟢 **STRONG BUY** {ticker} → ${data['price']:.3f} | **+{data['change']:.1f}%**")
-                    st.write(f"   → Risk only $5-$10 | Good volume & momentum")
-                    strong_buys.append(ticker)
+                    st.write(f"   → Risk $5-$10 | Target: +20-40% today")
                 elif data['change'] >= 5:
                     st.info(f"🟡 **CONSIDER** {ticker} → ${data['price']:.3f} | +{data['change']:.1f}%")
-            
-            if not strong_buys:
-                st.write("No strong momentum stocks right now. Wait for better setup.")
 
-        # ========== 1 WEEK BUYS ==========
+        # 1 WEEK BUYS
         with tab2:
-            st.subheader("📅 1 WEEK BUYS (Good for Short-Term Hold)")
+            st.subheader("📅 1 WEEK BUYS")
             for ticker in penny_stocks:
                 data = get_data(ticker)
                 if data['change'] > 3:
                     st.success(f"📈 **BUY** {ticker} → ${data['price']:.3f} | +{data['change']:.1f}%")
-                    st.write(f"   → Potential for continued move this week")
 
-        # ========== 1 MONTH BUYS ==========
+        # 1 MONTH BUYS
         with tab3:
-            st.subheader("📆 1 MONTH BUYS (Better for Holding)")
+            st.subheader("📆 1 MONTH BUYS")
             for ticker in penny_stocks:
                 data = get_data(ticker)
                 if data['price'] < 8 and data['change'] > 2:
                     st.success(f"🏦 **BUY** {ticker} → ${data['price']:.3f} | +{data['change']:.1f}%")
-                    st.write(f"   → Good price + momentum for 1 month hold")
 
-        # ========== BIG COMPANIES ==========
+        # BIG COMPANIES - SEPARATED BY TIMEFRAME
         with tab4:
-            st.subheader("📈 BIG COMPANIES - Long Term")
+            st.subheader("📈 BIG COMPANIES - Long Term Outlook")
+            
             for ticker in big_stocks:
                 data = get_data(ticker)
                 upside = ((data['target'] / data['price']) - 1) * 100 if data['price'] > 0 else 0
                 
-                if upside > 12:
-                    st.success(f"**BUY** {ticker} → ${data['price']:.2f} | **{upside:.1f}%** Upside (12 months)")
-                elif upside > 5:
-                    st.info(f"{ticker} → ${data['price']:.2f} | {upside:.1f}% Upside")
-                else:
-                    st.write(f"{ticker} → ${data['price']:.2f} | {upside:.1f}% Upside")
+                st.write(f"**{ticker}** → Current: ${data['price']:.2f}")
+                
+                col1, col2, col3, col4 = st.columns(4)
+                
+                with col1:
+                    if upside > 8:
+                        st.success(f"**1 Month:** Bullish")
+                    else:
+                        st.info(f"**1 Month:** Neutral")
+                
+                with col2:
+                    if upside > 10:
+                        st.success(f"**3 Month:** Positive")
+                    else:
+                        st.info(f"**3 Month:** Neutral")
+                
+                with col3:
+                    if upside > 12:
+                        st.success(f"**6 Month:** Strong")
+                    else:
+                        st.info(f"**6 Month:** Moderate")
+                
+                with col4:
+                    if upside > 15:
+                        st.success(f"**12 Month:** **+{upside:.1f}%**")
+                    elif upside > 8:
+                        st.info(f"**12 Month:** +{upside:.1f}%")
+                    else:
+                        st.warning(f"**12 Month:** +{upside:.1f}%")
 
-        # ========== MARKET TRENDS ==========
+        # MARKET TRENDS
         with tab5:
             st.subheader("📊 MARKET TRENDS")
             st.info("**Positive:** AI momentum still strong, good earnings")
